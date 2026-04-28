@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "漫画巻数管理"
+version = "1.0.0"
+id = "artifacts/manga-tracker"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19517
+
+[services.development]
+run = "pnpm --filter @workspace/manga-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/manga-tracker", "run", "build" ]
+publicDir = "artifacts/manga-tracker/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19517"
+BASE_PATH = "/"

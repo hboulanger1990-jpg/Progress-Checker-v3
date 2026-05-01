@@ -1,3 +1,4 @@
+import { Settings, Pencil, Trash2, ArrowUpDown, Search, ArrowLeft, X, Plus, Check, GripVertical, Grid2x2Check, ListChecks } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { Folder, Work } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -30,6 +31,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
   const [editTarget, setEditTarget] = useState<Work | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState(false);
+  const [sortBaseOrder, setSortBaseOrder] = useState<Work[]>(folder.works);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -59,8 +61,8 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
   });
 
   const sortedFiltered = sortMode
-    ? folder.works
-    : isReadMode
+  ? sortBaseOrder
+  : isReadMode
       ? filtered
       : [...filtered].sort((a, b) => {
           const pa = calcWorkProgress(a.sections).percent;
@@ -199,7 +201,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
             className="relative border-2 border-dashed rounded-3xl px-10 py-8 text-center"
             style={{ borderColor: folderHex }}
           >
-            <p className="text-4xl mb-2">📋</p>
+            <div className="flex justify-center"><Grid2x2Check size={40} /></div>
             <p className="font-bold text-lg" style={{ color: folderHex }}>ここにドロップ</p>
             <p className="text-sm text-[#787c99] mt-1">1行につき1項目として追加します</p>
           </div>
@@ -214,7 +216,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
               className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2"
               style={{ color: folderHex }}
             >
-              <span className="text-base">←</span>
+              <span className="text-base"><ArrowLeft size={20} /></span>
               <span>戻る</span>
             </button>
             <h1 className="flex-1 font-bold text-[#c0caf5] text-base truncate">{folder.title}</h1>
@@ -225,20 +227,24 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                 </span>
               )}
               <button
-                onClick={() => { setSortMode((v) => !v); setSelectedId(null); }}
+                onClick={() => {
+  if (!sortMode) setSortBaseOrder([...sortedFiltered]);
+  setSortMode((v) => !v);
+  setSelectedId(null);
+}}
                 className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all text-sm"
                 style={sortMode
                   ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
                   : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
                 }
                 title="並び替えモード"
-              >↕</button>
+              ><ArrowUpDown size={20} /></button>
             </div>
           </div>
           {!sortMode && (
             <>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99] text-sm">🔍</span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99] text-sm"><Search size={20} /></span>
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -246,7 +252,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                   className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
                 />
                 {search && (
-                  <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99] text-lg leading-none">✕</button>
+                  <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99] text-lg leading-none"><X size={20} /></button>
                 )}
               </div>
               {allTags.length > 0 && (
@@ -278,7 +284,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
       <main className="flex-1 px-4 py-3 max-w-lg mx-auto w-full pb-32">
         {sortedFiltered.length === 0 ? (
           <div className="mt-20 text-center space-y-2">
-            <p className="text-4xl">📖</p>
+           <div className="flex justify-center"><ListChecks size={40} /></div>
             <p className="text-[#787c99] text-sm">
               {search || selectedTag ? "条件に一致する項目はありません" : "項目がありません"}
             </p>
@@ -325,7 +331,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                           style={{ color: done ? "#1a1b2666" : "#4a5177" }}
                           onMouseDown={(e) => handleMouseDragStart(e, work.id)}
                           onTouchStart={(e) => { e.stopPropagation(); handleTouchDragStart(e, work.id); }}
-                        >⠿</span>
+                        ><GripVertical size={20} /></span>
                       )}
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <span
@@ -335,7 +341,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                             backgroundColor: done ? "#1a1b26" : "transparent",
                             color: done ? hex : "transparent",
                           }}
-                        >✓</span>
+                        ><Check size={20} /></span>
                         <span
                           className="font-bold text-sm leading-tight truncate flex-1 min-w-0"
                           style={{ color: done ? "#1a1b26" : "#c0caf5" }}
@@ -357,9 +363,9 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                       </div>
                     </button>
                     {isSelected && !sortMode && (
-                      <div className="absolute top-0 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg">✏️ 編集</button>
-                        <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg">🗑 削除</button>
+                      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"><Pencil size={16} /> 編集</button>
+                        <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
                       </div>
                     )}
                   </div>
@@ -408,7 +414,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                           className="text-[#4a5177] text-lg cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
                           onMouseDown={(e) => handleMouseDragStart(e, work.id)}
                           onTouchStart={(e) => { e.stopPropagation(); handleTouchDragStart(e, work.id); }}
-                        >⠿</span>
+                        ><GripVertical size={20} /></span>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -428,12 +434,12 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                             ))}
                           </div>
                         )}
-                      </div>
+                      </div>  
                     </button>
                     {isSelected && !sortMode && (
-                      <div className="absolute top-0 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg">✏️ 編集</button>
-                        <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg">🗑 削除</button>
+                      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"><Pencil size={16} /> 編集</button>
+                        <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
                       </div>
                     )}
                   </div>
@@ -454,7 +460,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
             className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 text-[#1a1b26]"
             style={{ backgroundColor: folderHex, boxShadow: `0 4px 24px ${folderHex}33` }}
           >
-            <span className="text-xl leading-none">＋</span>
+            <span className="text-xl leading-none"><Plus size={20} /></span>
             <span>新しい項目を追加</span>
           </button>
         </div>

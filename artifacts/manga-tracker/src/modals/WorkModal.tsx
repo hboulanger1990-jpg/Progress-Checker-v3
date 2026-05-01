@@ -44,7 +44,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
     return () => document.removeEventListener("visibilitychange", handler, true);
   }, []);
 
-  // ⑥ タグ候補：入力値でフィルタ＋まだ追加していないもの
+  // ⑥ タグ候補：入力値でフィルタ<Plus size={20} />まだ追加していないもの
   const tagSuggestions = existingTags.filter(
     (t) => !tags.includes(t) && (tagInput.trim() === "" || t.toLowerCase().includes(tagInput.toLowerCase()))
   );
@@ -144,7 +144,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
             </div>
           </div>
 
-          {/* ⑥ タグ入力＋サジェスト */}
+          {/* ⑥ タグ入力<Plus size={20} />サジェスト */}
           <div>
             <label className="block text-xs text-[#787c99] mb-1">タグ（省略可）</label>
             <div className="relative">

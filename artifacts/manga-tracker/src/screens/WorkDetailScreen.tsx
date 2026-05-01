@@ -1,3 +1,4 @@
+import { Settings, Trash2, ArrowUpDown, Search, ArrowLeft, X, Plus, GripVertical, Grid2x2Check } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { Folder, Work, Section } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -255,7 +256,7 @@ export default function WorkDetailScreen({
               className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2"
               style={{ color: folderHex }}
             >
-              <span className="text-base">←</span>
+              <span className="text-base"><ArrowLeft size={20} /></span>
               <span>戻る</span>
             </button>
             <div className="flex-1 min-w-0">
@@ -270,19 +271,19 @@ export default function WorkDetailScreen({
                   : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
                 }
                 title="並び替えモード"
-              >↕</button>
+              ><ArrowUpDown size={20} /></button>
               {hasTextSections && !sortMode && (
                 <button
                   onClick={() => setShowTextSearch((v) => !v)}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform text-sm"
                   style={{ color: showTextSearch ? accentHex : "#787c99", borderColor: showTextSearch ? accentHex : "#3b4261" }}
                   aria-label="テキスト検索"
-                >🔍</button>
+                ><Search size={20} /></button>
               )}
               <button
                 onClick={() => setShowWorkEdit(true)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] text-[#787c99] active:scale-95 transition-transform text-sm"
-              >⚙️</button>
+              ><Settings size={16} /></button>
             </div>
           </div>
         </div>
@@ -328,7 +329,7 @@ export default function WorkDetailScreen({
       {hasTextSections && showTextSearch && !sortMode && (
         <div className="px-4 mb-2 max-w-lg mx-auto w-full">
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99] text-sm">🔍</span>
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99] text-sm"><Search size={20} /></span>
             <input
               value={textSearch}
               onChange={(e) => setTextSearch(e.target.value)}
@@ -336,7 +337,7 @@ export default function WorkDetailScreen({
               className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-8 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
             />
             {textSearch && (
-              <button onClick={() => setTextSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99] text-lg leading-none">✕</button>
+              <button onClick={() => setTextSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99] text-lg leading-none"><X size={20} /></button>
             )}
           </div>
         </div>
@@ -344,19 +345,18 @@ export default function WorkDetailScreen({
 
       <main className="flex-1 px-3 max-w-lg mx-auto w-full pb-6">
         {work.sections.length === 0 ? (
-          <div className="mt-12 text-center space-y-2">
-            <p className="text-3xl">📋</p>
+<div className="mt-12 text-center space-y-2 flex flex-col items-center">
+            <div className="flex justify-center"><Grid2x2Check size={40} /></div>
             <p className="text-[#787c99] text-sm">{secLabel}がありません</p>
             <button
               onClick={() => setSectionModal({ mode: "add" })}
-              className="mt-2 px-6 py-2.5 rounded-xl text-sm font-bold text-[#1a1b26] active:scale-95 transition-transform"
+              className="mt-2 px-6 py-2.5 rounded-xl text-sm font-bold text-[#1a1b26] active:scale-95 transition-transform flex items-center justify-center gap-1"
               style={{ backgroundColor: accentHex }}
             >
-              ＋ {secLabel}を追加
+              <Plus size={20} /> {secLabel}を追加
             </button>
           </div>
-        ) : (
-          <div className="space-y-5">
+        ) : (          <div className="space-y-5">
             {/* セクションドロップ先インジケーター（先頭） */}
             {sortMode && draggingSectionId && dragOverSectionIdx === 0 && (
               <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />
@@ -419,7 +419,7 @@ export default function WorkDetailScreen({
                               window.addEventListener("mouseup", onUp);
                             }}
                             aria-label="セクションを並び替え"
-                          >⠿</button>
+                          ><GripVertical size={20} /></button>
                         )}
                         <div className="min-w-0">
                           <span className="font-bold text-[#c0caf5] text-sm">{section.label}</span>
@@ -435,11 +435,11 @@ export default function WorkDetailScreen({
                         <button
                           onClick={() => setSectionModal({ mode: "edit", section })}
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-[#787c99] text-xs active:scale-95 transition-transform"
-                        >⚙️</button>
+                        ><Settings size={16} /></button>
                         <button
                           onClick={() => handleDeleteSection(section)}
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-[#f7768e] text-xs active:scale-95 transition-transform"
-                        >🗑</button>
+                        ><Trash2 size={16} /></button>
                       </div>
                     </div>
 
@@ -520,7 +520,7 @@ export default function WorkDetailScreen({
                                         window.addEventListener("mousemove", onMove);
                                         window.addEventListener("mouseup", onUp);
                                       }}
-                                    >⠿</span>
+                                    ><GripVertical size={20} /></span>
                                   )}
                                   <span className="whitespace-pre-wrap break-words flex-1">{itemLabel}</span>
                                 </div>
@@ -572,7 +572,7 @@ export default function WorkDetailScreen({
               onClick={() => setSectionModal({ mode: "add" })}
               className="w-full py-3 rounded-xl border border-dashed border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
             >
-              <span>＋</span>
+              <span><Plus size={20} /></span>
               <span>{secLabel}を追加</span>
             </button>
           </div>

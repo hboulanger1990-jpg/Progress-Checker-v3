@@ -1,3 +1,4 @@
+import { CloudUpload, Check } from "lucide-react";
 import { useState } from "react";
 import type { Folder } from "../types";
 import { exportData, importData } from "../storage";
@@ -48,7 +49,7 @@ export default function BackupModal({ data, onClose, onImport }: Props) {
       <div className="relative w-full max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-[#c0caf5]">バックアップ</h2>
-          <button onClick={onClose} className="text-[#787c99] hover:text-[#c0caf5] text-xl leading-none transition-colors">✕</button>
+          <button onClick={onClose} className="text-[#787c99] hover:text-[#c0caf5] text-xl leading-none transition-colors"><CloudUpload size={20} /></button>
         </div>
         <div className="flex gap-1 mb-4 bg-[#24283b] rounded-xl p-1">
           <button onClick={() => setTab("export")} className={tabClass("export")}>エクスポート</button>
@@ -61,9 +62,9 @@ export default function BackupModal({ data, onClose, onImport }: Props) {
             <textarea readOnly value={json} className="flex-1 min-h-[160px] bg-[#24283b] text-[#787c99] text-xs border border-[#3b4261] rounded-xl p-3 outline-none font-mono resize-none" />
             <button
               onClick={handleCopy}
-              className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 ${copied ? "bg-[#9ece6a] text-[#1a1b26]" : "bg-[#7aa2f7] text-[#1a1b26]"}`}
+              className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-1 ${copied ? "bg-[#9ece6a] text-[#1a1b26]" : "bg-[#7aa2f7] text-[#1a1b26]"}`}
             >
-              {copied ? "✓ コピーしました！" : "JSONをコピー"}
+              {copied ? <><Check size={20} /> コピーしました！</> : "JSONをコピー"}
             </button>
           </div>
         )}

@@ -1,3 +1,4 @@
+import { FileDigit, FileType2, Pencil, Plus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import type { Section } from "../types";
 
@@ -140,7 +141,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                     : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
                 }
               >
-                🔢 数字
+                <FileDigit size={20}  className="inline" /> 数字
               </button>
               <button
                 onClick={() => handleSetMode("text")}
@@ -151,7 +152,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                     : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
                 }
               >
-                📝 テキスト
+                <FileType2 size={20}  className="inline"/> テキスト
               </button>
             </div>
           </div>
@@ -190,7 +191,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                 onClick={() => insertItem(0)}
                 className="w-full mb-1.5 py-1 rounded-lg border border-dashed border-[#3b4261] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
               >
-                ＋ 先頭に追加
+                <Plus size={20} />先頭に追加
               </button>
 
               <div className="space-y-1.5">
@@ -215,7 +216,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                       onClick={() => insertItem(index + 1)}
                       className="w-full mt-1 py-0.5 rounded border border-dashed border-[#2a2d3e] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
                     >
-                      ＋
+                      <Plus size={20} />
                     </button>
                   </div>
                 ))}

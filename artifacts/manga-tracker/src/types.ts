@@ -9,6 +9,15 @@ export const ACCENT_COLORS: Record<AccentColor, { label: string; hex: string }> 
   teal:   { label: "ティール",  hex: "#2ac3de" },
 };
 
+export type SortOrder =
+  | "default"           // 登録順
+  | "reverse"           // 登録逆順
+  | "completed_first"   // 完了→未完了（完了タイプのみ）
+  | "incomplete_first"  // 未完了→完了（完了タイプのみ）
+  | "abc"               // あいうえお順（完了タイプ・テキストモードのみ）
+  | "progress_asc"      // 進捗順 低→高（進捗タイプのみ）
+  | "progress_desc";    // 進捗順 高→低（進捗タイプのみ）
+
 export interface Section {
   id: string;
   label: string;
@@ -17,6 +26,7 @@ export interface Section {
   statuses: Record<number, "read">;
   mode?: "number" | "text";
   items?: string[];
+  sortOrder?: SortOrder;
 }
 
 export interface Work {
@@ -30,6 +40,7 @@ export interface Work {
   sections: Section[];
   tags?: string[];
   completed?: boolean;
+  sortOrder?: SortOrder;
   updatedAt: number;
 }
 

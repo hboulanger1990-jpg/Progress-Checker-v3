@@ -12,13 +12,22 @@ type View =
   | { screen: "works"; folderId: string }
   | { screen: "detail"; folderId: string; workId: string };
 
+const LOCK_KEY = "pc-locked";
+
 export default function App() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [view, setView] = useState<View>({ screen: "folders" });
   const [fading, setFading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [locked, setLocked] = useState<boolean>(() => {
+    return localStorage.getItem(LOCK_KEY) === "true";
+  });
   const initialLoadDone = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem(LOCK_KEY, locked ? "true" : "false");
+  }, [locked]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -125,7 +134,6 @@ export default function App() {
     mutate((prev) => prev.filter((f) => f.id !== id));
   }
 
-  // ---- Folder reorder ----
   function reorderFolders(newFolders: Folder[]) {
     mutate(() => newFolders);
   }
@@ -135,19 +143,18 @@ export default function App() {
     const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: [work, ...f.works], updatedAt: Date.now() }));
   }
-  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) {
-  mutate((prev) => prev.map((f) => {
-    if (f.id !== folderId) return f;
-    const updatedWorks = f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() });
-    const sorted = f.type === "read" ? updatedWorks : updatedWorks.sort((a, b) => b.updatedAt - a.updatedAt);
-    return { ...f, updatedAt: Date.now(), works: sorted };
-  }));
-}
+  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags" | "sortOrder">>) {
+    mutate((prev) => prev.map((f) => {
+      if (f.id !== folderId) return f;
+      const updatedWorks = f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() });
+      const sorted = f.type === "read" ? updatedWorks : updatedWorks.sort((a, b) => b.updatedAt - a.updatedAt);
+      return { ...f, updatedAt: Date.now(), works: sorted };
+    }));
+  }
   function deleteWork(folderId: string, workId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: f.works.filter((w) => w.id !== workId), updatedAt: Date.now() }));
   }
 
-  // ---- Work reorder ----
   function reorderWorks(folderId: string, newWorks: Work[]) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: newWorks }));
   }
@@ -165,14 +172,13 @@ export default function App() {
     const section: Section = { ...s, id: crypto.randomUUID(), statuses: {} };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: [...w.sections, section], updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
-  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items">>) {
+  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items" | "sortOrder">>) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
   function deleteSection(folderId: string, workId: string, sectionId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.filter((s) => s.id !== sectionId) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
 
-  // ---- Section reorder（①セクション並び替え） ----
   function reorderSections(folderId: string, workId: string, newSections: Section[]) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : {
       ...f,
@@ -182,7 +188,6 @@ export default function App() {
     }));
   }
 
-  // ---- Item reorder（①テキストアイテム並び替え） ----
   function reorderItems(folderId: string, workId: string, sectionId: string, newItems: string[], newStatuses: Section["statuses"]) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : {
       ...f,
@@ -195,12 +200,10 @@ export default function App() {
     }));
   }
 
-  // ---- Item toggle ----
   function toggleItem(folderId: string, workId: string, sectionId: string, num: number) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => { if (s.id !== sectionId) return s; const next = { ...s.statuses }; if (next[num]) delete next[num]; else next[num] = "read"; return { ...s, statuses: next }; }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
 
-  // ---- Import ----
   function importHandler(data: Folder[]) {
     const sorted = [...data].sort((a, b) => b.updatedAt - a.updatedAt);
     setFolders(sorted);
@@ -219,6 +222,8 @@ export default function App() {
         <FolderListScreen
           folders={folders}
           user={user}
+          locked={locked}
+          onToggleLock={() => setLocked((v) => !v)}
           onSignIn={signInWithGoogle}
           onSignOut={signOut}
           onSelect={(f) => navigate({ screen: "works", folderId: f.id })}
@@ -232,6 +237,8 @@ export default function App() {
       {view.screen === "works" && currentFolder && (
         <WorkListScreen
           folder={currentFolder}
+          locked={locked}
+          onToggleLock={() => setLocked((v) => !v)}
           onBack={goBack}
           onSelect={(w) => navigate({ screen: "detail", folderId: currentFolder.id, workId: w.id })}
           onToggleCompleted={(wId) => toggleWorkCompleted(currentFolder.id, wId)}
@@ -245,6 +252,8 @@ export default function App() {
         <WorkDetailScreen
           folder={currentFolder}
           work={currentWork}
+          locked={locked}
+          onToggleLock={() => setLocked((v) => !v)}
           onBack={goBack}
           onEditWork={(updates) => editWork(currentFolder.id, currentWork.id, updates)}
           onDeleteWork={() => { deleteWork(currentFolder.id, currentWork.id); navigate({ screen: "works", folderId: currentFolder.id }); }}

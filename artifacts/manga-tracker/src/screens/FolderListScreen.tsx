@@ -1,4 +1,4 @@
-import { Pencil, Trash2, CloudUpload, LogOut, User as UserIcon, ArrowUpDown, Search, X, Plus, GripVertical } from "lucide-react";
+import { Pencil, Trash2, CloudUpload, LogOut, User as UserIcon, ArrowUpDown, Search, X, Plus, GripVertical, LockKeyhole, LockKeyholeOpen } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { AccentColor, Folder } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -9,6 +9,8 @@ import type { User } from "@supabase/supabase-js";
 interface Props {
   folders: Folder[];
   user: User | null;
+  locked: boolean;
+  onToggleLock: () => void;
   onSignIn: () => void;
   onSignOut: () => void;
   onSelect: (f: Folder) => void;
@@ -19,7 +21,7 @@ interface Props {
   onImport: (data: Folder[]) => void;
 }
 
-export default function FolderListScreen({ folders, user, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onReorder, onImport }: Props) {
+export default function FolderListScreen({ folders, user, locked, onToggleLock, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onReorder, onImport }: Props) {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Folder | null>(null);
@@ -36,6 +38,14 @@ export default function FolderListScreen({ folders, user, onSignIn, onSignOut, o
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
+  // ロック時はモードを解除
+  useEffect(() => {
+    if (locked) {
+      setSortMode(false);
+      setSelectedId(null);
+    }
+  }, [locked]);
+
   const sorted = [...folders].sort((a, b) => b.updatedAt - a.updatedAt);
   const filtered = search ? sorted.filter((f) => f.title.toLowerCase().includes(search.toLowerCase())) : sorted;
 
@@ -46,7 +56,7 @@ export default function FolderListScreen({ folders, user, onSignIn, onSignOut, o
   }
 
   function handlePressStart(id: string) {
-    if (sortMode) return;
+    if (sortMode || locked) return;
     longPressTimer.current = setTimeout(() => setSelectedId(id), 500);
   }
   function handlePressEnd() {
@@ -132,25 +142,38 @@ export default function FolderListScreen({ folders, user, onSignIn, onSignOut, o
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl font-bold text-[#c0caf5]">Progress Checker</h1>
             <div className="flex items-center gap-2">
-              {/* 並び替えモードボタン */}
+              {/* ロックボタン */}
               <button
-                onClick={() => { setSortMode((v) => !v); setSelectedId(null); }}
+                onClick={(e) => { e.stopPropagation(); onToggleLock(); }}
+                className="w-9 h-9 flex items-center justify-center rounded-xl border active:scale-95 transition-all"
+                style={locked
+                  ? { backgroundColor: "#f7768e22", borderColor: "#f7768e", color: "#f7768e" }
+                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#4a5177" }
+                }
+                title={locked ? "ロック中（タップで解除）" : "ロック"}
+              >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
+
+              {/* 並び替えモードボタン（ロック中は無効） */}
+              <button
+                onClick={() => { if (locked) return; setSortMode((v) => !v); setSelectedId(null); }}
                 className="w-9 h-9 flex items-center justify-center rounded-xl border active:scale-95 transition-all text-base"
                 style={sortMode
                   ? { backgroundColor: "#7aa2f7", borderColor: "#7aa2f7", color: "#1a1b26" }
-                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
                 }
                 title="並び替えモード"
               ><ArrowUpDown size={20} /></button>
+
               <button
                 onClick={() => setShowBackup(true)}
                 className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform text-base text-[#787c99]"
                 title="バックアップ"
               ><CloudUpload size={20} /></button>
+
               {user ? (
                 <button
                   onClick={onSignOut}
-                  className="flex items-center gap-1.5 text-xs text-[#787c99] bg-[#24283b] px-3 py-1.5 rounded-xl border border-[#3b4261] active:scale-95 transition-transform h-9"
+                  className="w-9 h-9 flex items-center justify-center text-xs text-[#787c99] bg-[#24283b] rounded-xl border border-[#3b4261] active:scale-95 transition-transform h-9"
                 ><LogOut size={20} /></button>
               ) : (
                 <button
@@ -215,13 +238,12 @@ export default function FolderListScreen({ folders, user, onSignIn, onSignOut, o
                     onMouseLeave={handlePressEnd}
                     onTouchStart={() => { if (!sortMode) handlePressStart(folder.id); }}
                     onTouchEnd={handlePressEnd}
-                    onContextMenu={(e) => { if (!sortMode) { e.preventDefault(); setSelectedId(folder.id); } }}
+                    onContextMenu={(e) => { if (!sortMode && !locked) { e.preventDefault(); setSelectedId(folder.id); } }}
                     className={`w-full bg-[#24283b] border rounded-2xl px-4 py-3.5 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${
                       isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"
                     }`}
                     style={{ borderLeftColor: hex, borderLeftWidth: "4px" }}
                   >
-                    {/* 並び替えモード時のハンドル */}
                     {sortMode && (
                       <span
                         className="text-[#4a5177] text-lg cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
@@ -232,7 +254,7 @@ export default function FolderListScreen({ folders, user, onSignIn, onSignOut, o
                     <span className="font-bold text-[#c0caf5] text-base leading-tight flex-1">{folder.title}</span>
                   </button>
 
-                  {isSelected && !sortMode && (
+                  {isSelected && !sortMode && !locked && (
                     <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => { setEditTarget(folder); setSelectedId(null); }}
@@ -251,17 +273,20 @@ export default function FolderListScreen({ folders, user, onSignIn, onSignOut, o
         )}
       </main>
 
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
-        <div className="max-w-lg mx-auto">
-          <button
-            onClick={() => setShowAdd(true)}
-            className="w-full bg-[#7aa2f7] text-[#1a1b26] font-bold py-4 rounded-2xl text-base shadow-lg shadow-[#7aa2f7]/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-          >
-            <span className="text-xl leading-none"><Plus size={20} /></span>
-            <span>新しいフォルダを追加</span>
-          </button>
+      {/* 追加ボタン（ロック中は非表示） */}
+      {!locked && (
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
+          <div className="max-w-lg mx-auto">
+            <button
+              onClick={() => setShowAdd(true)}
+              className="w-full bg-[#7aa2f7] text-[#1a1b26] font-bold py-4 rounded-2xl text-base shadow-lg shadow-[#7aa2f7]/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+            >
+              <span className="text-xl leading-none"><Plus size={20} /></span>
+              <span>新しいフォルダを追加</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {showAdd && (
         <FolderModal

@@ -20,19 +20,19 @@ interface Props {
   onToggleItem: (sectionId: string, num: number) => void;
   onReorderSections: (newSections: Section[]) => void;
   onReorderItems: (sectionId: string, newItems: string[], newStatuses: Section["statuses"]) => void;
+  onSetSectionSortOrder: (sectionId: string, order: SortOrder) => void;
+  onSetAllSectionsSortOrder: (order: SortOrder) => void;
 }
 
 type SectionModalState = null | { mode: "add" } | { mode: "edit"; section: Section };
 
 const LAST_TOGGLE_PREFIX = "pc-lt-";
 
-// セクション並び順の選択肢
 const SECTION_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
   { value: "default", label: "登録順" },
   { value: "reverse", label: "登録逆順" },
 ];
 
-// テキスト項目並び順の選択肢
 const ITEM_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
   { value: "default", label: "登録順" },
   { value: "reverse", label: "登録逆順" },
@@ -42,7 +42,7 @@ const ITEM_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
 export default function WorkDetailScreen({
   folder, work, locked, onToggleLock, onBack, onEditWork, onDeleteWork,
   onAddSection, onEditSection, onDeleteSection, onToggleItem,
-  onReorderSections, onReorderItems,
+  onReorderSections, onReorderItems, onSetSectionSortOrder, onSetAllSectionsSortOrder,
 }: Props) {
   const [showWorkEdit, setShowWorkEdit] = useState(false);
   const [sectionModal, setSectionModal] = useState<SectionModalState>(null);
@@ -50,18 +50,14 @@ export default function WorkDetailScreen({
   const [showTextSearch, setShowTextSearch] = useState(false);
   const [sortMode, setSortMode] = useState(false);
 
-  // セクション並び順
   const [sectionSortOrder, setSectionSortOrder] = useState<SortOrder>(() => work.sections[0]?.sortOrder ?? "default");
   const [showSectionSortMenu, setShowSectionSortMenu] = useState(false);
+  const [showItemSortMenu, setShowItemSortMenu] = useState<string | null>(null);
 
-  // ドラッグ状態
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
   const [dragOverSectionIdx, setDragOverSectionIdx] = useState<number | null>(null);
   const [draggingItem, setDraggingItem] = useState<{ sectionId: string; idx: number } | null>(null);
   const [dragOverItemIdx, setDragOverItemIdx] = useState<number | null>(null);
-
-  // セクションごとの項目並び順メニュー表示
-  const [showItemSortMenu, setShowItemSortMenu] = useState<string | null>(null); // sectionId
 
   const touchStart = useRef({ x: 0, y: 0 });
   const justBecameVisible = useRef(false);
@@ -73,22 +69,16 @@ export default function WorkDetailScreen({
   const { read, total, percent } = calcWorkProgress(work.sections);
   const secLabel = work.sectionLabel || "セクション";
   const ltKey = `${LAST_TOGGLE_PREFIX}${work.id}`;
-
   const hasTextSections = work.sections.some((s) => s.mode === "text");
 
-  useEffect(() => {
-    if (locked) setSortMode(false);
-  }, [locked]);
+  useEffect(() => { if (locked) setSortMode(false); }, [locked]);
 
   useEffect(() => {
     const raw = localStorage.getItem(ltKey);
     if (!raw) return;
     try {
       const { sectionId, num } = JSON.parse(raw) as { sectionId: string; num: number };
-      setTimeout(() => {
-        const el = document.getElementById(`item-${sectionId}-${num}`);
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 200);
+      setTimeout(() => { document.getElementById(`item-${sectionId}-${num}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); }, 200);
     } catch { /* ignore */ }
   }, []);
 
@@ -110,9 +100,7 @@ export default function WorkDetailScreen({
     };
   }, []);
 
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }
+  function handleTouchStart(e: React.TouchEvent) { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
   function handleTouchEnd(e: React.TouchEvent) {
     if (justBecameVisible.current) return;
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
@@ -129,10 +117,7 @@ export default function WorkDetailScreen({
     if (locked) return;
     onToggleItem(sectionId, num);
     localStorage.setItem(ltKey, JSON.stringify({ sectionId, num }));
-    requestAnimationFrame(() => {
-      const el = document.getElementById(`item-${sectionId}-${num}`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
+    requestAnimationFrame(() => { document.getElementById(`item-${sectionId}-${num}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); });
   }
 
   function getAddSectionDefaults() {
@@ -140,39 +125,29 @@ export default function WorkDetailScreen({
     if (n === 0) return { label: "1", startNum: 1, endNum: undefined };
     const last = work.sections[n - 1];
     const startNum = last.endNum + 1;
-    const lastCount = last.endNum - last.startNum + 1;
-    return { label: `${n + 1}`, startNum, endNum: startNum + lastCount - 1 };
+    return { label: `${n + 1}`, startNum, endNum: startNum + (last.endNum - last.startNum) };
   }
 
-  // セクション並び順の適用
   function applySectionSort(sections: Section[]): Section[] {
-    switch (sectionSortOrder) {
-      case "reverse": return [...sections].reverse();
-      default: return sections;
-    }
+    if (sectionSortOrder === "reverse") return [...sections].reverse();
+    return sections;
   }
 
-  // テキスト項目並び順の適用
   function applyItemSort(items: string[], section: Section): string[] {
     const order = section.sortOrder ?? "default";
-    switch (order) {
-      case "reverse": return [...items].reverse();
-      case "abc": return [...items].sort((a, b) => a.localeCompare(b, "ja"));
-      default: return items;
-    }
+    if (order === "reverse") return [...items].reverse();
+    if (order === "abc") return [...items].sort((a, b) => a.localeCompare(b, "ja"));
+    return items;
   }
 
-  // セクション並び順変更
   function handleSectionSortChange(order: SortOrder) {
     setSectionSortOrder(order);
     setShowSectionSortMenu(false);
-    // 全セクションに保存
-    work.sections.forEach((s) => onEditSection(s.id, { sortOrder: order }));
+    onSetAllSectionsSortOrder(order); // updatedAt更新なし
   }
 
-  // テキスト項目並び順変更
   function handleItemSortChange(sectionId: string, order: SortOrder) {
-    onEditSection(sectionId, { sortOrder: order });
+    onSetSectionSortOrder(sectionId, order); // updatedAt更新なし
     setShowItemSortMenu(null);
   }
 
@@ -280,8 +255,7 @@ export default function WorkDetailScreen({
     if (!textSearch.trim()) return sections;
     return sections.map((s) => {
       if (s.mode !== "text" || !s.items) return s;
-      const filtered = s.items.filter((item) => item.toLowerCase().includes(textSearch.toLowerCase()));
-      return { ...s, _filteredItems: filtered };
+      return { ...s, _filteredItems: s.items.filter((item) => item.toLowerCase().includes(textSearch.toLowerCase())) };
     });
   }, [work.sections, textSearch, sectionSortOrder]);
 
@@ -293,7 +267,7 @@ export default function WorkDetailScreen({
       onClick={() => { setShowSectionSortMenu(false); setShowItemSortMenu(null); }}
     >
       <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 py-3">
-        <div className="max-w-lg mx-auto relative">
+        <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2" style={{ color: folderHex }}>
               <ArrowLeft size={20} /><span>戻る</span>
@@ -303,8 +277,7 @@ export default function WorkDetailScreen({
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {/* ロックボタン */}
-              <button
-                onClick={onToggleLock}
+              <button onClick={onToggleLock}
                 className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                 style={locked
                   ? { backgroundColor: "#f7768e22", borderColor: "#f7768e", color: "#f7768e" }
@@ -353,14 +326,13 @@ export default function WorkDetailScreen({
 
               {/* テキスト検索ボタン */}
               {hasTextSections && !sortMode && (
-                <button
-                  onClick={() => setShowTextSearch((v) => !v)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform"
+                <button onClick={() => setShowTextSearch((v) => !v)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border active:scale-95 transition-transform"
                   style={{ color: showTextSearch ? accentHex : "#787c99", borderColor: showTextSearch ? accentHex : "#3b4261" }}
                 ><Search size={20} /></button>
               )}
 
-              {/* 設定ボタン（ロック中は非表示） */}
+              {/* 設定ボタン */}
               {!locked && (
                 <button onClick={() => setShowWorkEdit(true)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] text-[#787c99] active:scale-95 transition-transform">
                   <Settings size={16} />
@@ -388,27 +360,13 @@ export default function WorkDetailScreen({
 
       <div className="px-4 max-w-lg mx-auto w-full mb-2">
         <div className="flex gap-4 text-xs text-[#787c99]">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-5 h-5 rounded border border-[#3b4261] bg-[#24283b]" />
-            {work.labelUnread}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-5 h-5 rounded border" style={{ backgroundColor: accentHex, borderColor: accentHex }} />
-            {work.labelRead}
-          </span>
-          {locked && (
-            <span className="flex items-center gap-1 text-[#f7768e]">
-              <LockKeyhole size={11} /> ロック中
-            </span>
-          )}
+          <span className="flex items-center gap-1.5"><span className="inline-block w-5 h-5 rounded border border-[#3b4261] bg-[#24283b]" />{work.labelUnread}</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block w-5 h-5 rounded border" style={{ backgroundColor: accentHex, borderColor: accentHex }} />{work.labelRead}</span>
+          {locked && <span className="flex items-center gap-1 text-[#f7768e]"><LockKeyhole size={11} /> ロック中</span>}
         </div>
       </div>
 
-      {sortMode && (
-        <div className="px-4 py-1.5 max-w-lg mx-auto w-full">
-          <p className="text-xs text-[#787c99] text-center">ハンドルをドラッグして並び替え　↕ で終了</p>
-        </div>
-      )}
+      {sortMode && <div className="px-4 py-1.5 max-w-lg mx-auto w-full"><p className="text-xs text-[#787c99] text-center">ハンドルをドラッグして並び替え　↕ で終了</p></div>}
 
       {hasTextSections && showTextSearch && !sortMode && (
         <div className="px-4 mb-2 max-w-lg mx-auto w-full">
@@ -439,7 +397,6 @@ export default function WorkDetailScreen({
             {filteredSections().map((section, sectionIndex) => {
               const sectionWithFilter = section as Section & { _filteredItems?: string[] };
               const rawItems = sectionWithFilter._filteredItems ?? section.items ?? [];
-              // 並び順適用（検索中は適用しない）
               const displayItems = textSearch ? rawItems : applyItemSort(rawItems, section);
               const { read: sRead, total: sTotal } = calcSectionProgress(section);
               const isDraggingThis = draggingSectionId === section.id;
@@ -505,7 +462,6 @@ export default function WorkDetailScreen({
                         </div>
                       </div>
                       <div className="flex gap-1 items-center">
-                        {/* テキストモードの項目並び順ボタン */}
                         {section.mode === "text" && !sortMode && (
                           <div className="relative">
                             <button
@@ -545,7 +501,7 @@ export default function WorkDetailScreen({
                         {sortMode && draggingItem?.sectionId === section.id && dragOverItemIdx === 0 && <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />}
                         {displayItems.map((itemLabel, idx) => {
                           const realIdx = section.items!.indexOf(itemLabel);
-                          const num = section.startNum + (textSearch ? realIdx : realIdx);
+                          const num = section.startNum + realIdx;
                           const isRead = !!section.statuses[num];
                           const isDraggingThisItem = draggingItem?.sectionId === section.id && draggingItem?.idx === idx;
                           return (
@@ -556,15 +512,11 @@ export default function WorkDetailScreen({
                                 onClick={() => !sortMode && handleToggle(section.id, num)}
                                 onTouchStart={(e) => { e.stopPropagation(); }}
                                 className={`w-full border rounded-xl px-4 py-3 text-left text-sm font-medium select-none touch-manipulation transition-all duration-100 ${isDraggingThisItem ? "opacity-40" : ""} ${sortMode || locked ? "" : "active:scale-[0.98]"}`}
-                                style={isRead
-                                  ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
-                                  : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
-                                }
+                                style={isRead ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex } : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }}
                               >
                                 <div className="flex items-center gap-2">
                                   {sortMode && (
-                                    <span
-                                      className="text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
+                                    <span className="text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
                                       onTouchStart={(e) => { e.stopPropagation(); startItemDrag(section.id, idx); }}
                                       onMouseDown={(e) => {
                                         if (!sortMode) return;
@@ -625,15 +577,10 @@ export default function WorkDetailScreen({
                         {Array.from({ length: section.endNum - section.startNum + 1 }, (_, i) => section.startNum + i).map((num) => {
                           const isRead = !!section.statuses[num];
                           return (
-                            <button
-                              key={num}
-                              id={`item-${section.id}-${num}`}
+                            <button key={num} id={`item-${section.id}-${num}`}
                               onClick={() => handleToggle(section.id, num)}
                               className={`border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation transition-all duration-100 ${locked ? "" : "active:scale-90"}`}
-                              style={isRead
-                                ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
-                                : { backgroundColor: "#24283b", color: locked ? "#3b4261" : "#4a5177", borderColor: "#3b4261" }
-                              }
+                              style={isRead ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex } : { backgroundColor: "#24283b", color: locked ? "#3b4261" : "#4a5177", borderColor: "#3b4261" }}
                             >{num}</button>
                           );
                         })}
@@ -644,7 +591,6 @@ export default function WorkDetailScreen({
                 </div>
               );
             })}
-
             {!locked && (
               <button onClick={() => setSectionModal({ mode: "add" })} className="w-full py-3 rounded-xl border border-dashed border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5">
                 <Plus size={20} /><span>{secLabel}を追加</span>
@@ -654,9 +600,7 @@ export default function WorkDetailScreen({
         )}
       </main>
 
-      {showWorkEdit && (
-        <WorkModal mode="edit" initial={work} onClose={() => setShowWorkEdit(false)} onSave={(data) => { onEditWork(data); setShowWorkEdit(false); }} />
-      )}
+      {showWorkEdit && <WorkModal mode="edit" initial={work} onClose={() => setShowWorkEdit(false)} onSave={(data) => { onEditWork(data); setShowWorkEdit(false); }} />}
       {sectionModal?.mode === "add" && (
         <SectionModal mode="add" labelName={secLabel} workId={work.id} defaults={getAddSectionDefaults()}
           onClose={() => setSectionModal(null)}

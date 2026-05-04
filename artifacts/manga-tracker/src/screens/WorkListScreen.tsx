@@ -21,9 +21,10 @@ interface Props {
     sectionLabel: string;
     tags: string[];
   }) => void;
-  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags" | "sortOrder">>) => void;
+  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) => void;
   onDelete: (workId: string) => void;
   onReorder: (newWorks: Work[]) => void;
+  onSetSortOrder: (order: SortOrder) => void; // updatedAt更新なし
 }
 
 const READ_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
@@ -41,7 +42,7 @@ const PROGRESS_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
   { value: "progress_desc", label: "進捗順（高→低）" },
 ];
 
-export default function WorkListScreen({ folder, locked, onToggleLock, onBack, onSelect, onToggleCompleted, onAdd, onEdit, onDelete, onReorder }: Props) {
+export default function WorkListScreen({ folder, locked, onToggleLock, onBack, onSelect, onToggleCompleted, onAdd, onEdit, onDelete, onReorder, onSetSortOrder }: Props) {
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -59,7 +60,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   const [showTagAction, setShowTagAction] = useState(false);
   const [tagActionInput, setTagActionInput] = useState("");
 
-  // 並び順
+  // 並び順（folderのworksから初期値を取得）
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => folder.works[0]?.sortOrder ?? "default");
   const [showSortMenu, setShowSortMenu] = useState(false);
 
@@ -131,16 +132,16 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     setSelectedId(null);
   }
 
-  function handlePressStart(id: string, touchX: number, touchY: number) {
+  function handlePressStart(id: string) {
     if (sortMode || locked || selectMode) return;
-    touchStart.current = { x: touchX, y: touchY };
     longPressTimer.current = setTimeout(() => setSelectedId(id), 500);
   }
   function handlePressEnd() {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
   }
   function handleTouchStart(e: React.TouchEvent, id: string) {
-    handlePressStart(id, e.touches[0].clientX, e.touches[0].clientY);
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    handlePressStart(id);
   }
 
   function calcDragOverIdx(clientY: number): number {
@@ -213,30 +214,25 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   }
 
-  // 一括上下移動
+  // 一括上下移動（folder.worksの実際の順番を基準に動かす）
   function moveSelectedItems(direction: "up" | "down") {
     const list = [...folder.works];
-    const ids = Array.from(selectedIds);
-    // 現在の表示順でのインデックスを取得
-    const indices = ids.map((id) => list.findIndex((w) => w.id === id)).filter((i) => i !== -1).sort((a, b) => a - b);
+    const indices = Array.from(selectedIds)
+      .map((id) => list.findIndex((w) => w.id === id))
+      .filter((i) => i !== -1)
+      .sort((a, b) => a - b);
     if (indices.length === 0) return;
 
     if (direction === "up") {
-      // 上端がすでに0なら動かせない
       if (indices[0] === 0) return;
       for (const idx of indices) {
-        const tmp = list[idx - 1];
-        list[idx - 1] = list[idx];
-        list[idx] = tmp;
+        [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
       }
     } else {
-      // 下端がすでに末尾なら動かせない
       if (indices[indices.length - 1] === list.length - 1) return;
       for (let i = indices.length - 1; i >= 0; i--) {
         const idx = indices[i];
-        const tmp = list[idx + 1];
-        list[idx + 1] = list[idx];
-        list[idx] = tmp;
+        [list[idx], list[idx + 1]] = [list[idx + 1], list[idx]];
       }
     }
     onReorder(list);
@@ -267,10 +263,11 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   const selectedWorks = folder.works.filter((w) => selectedIds.has(w.id));
   const commonTags = allTags.filter((tag) => selectedWorks.every((w) => (w.tags ?? []).includes(tag)));
 
+  // 並び順変更（updatedAt更新なし専用関数を使う）
   function handleSortOrderChange(order: SortOrder) {
     setSortOrder(order);
     setShowSortMenu(false);
-    folder.works.forEach((w) => onEdit(w.id, { sortOrder: order }));
+    onSetSortOrder(order);
   }
 
   const currentSortLabel = sortOptions.find((o) => o.value === sortOrder)?.label ?? "登録順";
@@ -321,7 +318,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
-              {/* 並び順ボタン（ロック中は無効） */}
+              {/* 並び順ボタン */}
               {!sortMode && !selectMode && (
                 <div className="relative">
                   <button
@@ -341,18 +338,10 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                       onClick={(e) => e.stopPropagation()}
                     >
                       {sortOptions.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => handleSortOrderChange(opt.value)}
+                        <button key={opt.value} onClick={() => handleSortOrderChange(opt.value)}
                           className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
-                          style={{
-                            color: sortOrder === opt.value ? folderHex : "#a9b1d6",
-                            backgroundColor: sortOrder === opt.value ? `${folderHex}11` : "transparent",
-                          }}
-                        >
-                          {opt.label}
-                          {sortOrder === opt.value && <Check size={14} />}
-                        </button>
+                          style={{ color: sortOrder === opt.value ? folderHex : "#a9b1d6", backgroundColor: sortOrder === opt.value ? `${folderHex}11` : "transparent" }}
+                        >{opt.label}{sortOrder === opt.value && <Check size={14} />}</button>
                       ))}
                     </div>
                   )}
@@ -362,11 +351,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
               {/* 複数選択ボタン */}
               {!sortMode && (
                 <button
-                  onClick={() => {
-                    if (locked) return;
-                    setSelectMode((v) => { if (v) setSelectedIds(new Set()); return !v; });
-                    setSelectedId(null);
-                  }}
+                  onClick={() => { if (locked) return; setSelectMode((v) => { if (v) setSelectedIds(new Set()); return !v; }); setSelectedId(null); }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                   style={selectMode
                     ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
@@ -379,12 +364,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
               {/* 並び替えボタン */}
               {!selectMode && (
                 <button
-                  onClick={() => {
-                    if (locked) return;
-                    if (!sortMode) setSortBaseOrder([...sortedFiltered]);
-                    setSortMode((v) => !v);
-                    setSelectedId(null);
-                  }}
+                  onClick={() => { if (locked) return; if (!sortMode) setSortBaseOrder([...sortedFiltered]); setSortMode((v) => !v); setSelectedId(null); }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                   style={sortMode
                     ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
@@ -400,10 +380,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             <>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="項目を検索..."
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="項目を検索..."
                   className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
                 />
                 {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>}
@@ -456,22 +433,17 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                         if (isSelected) { setSelectedId(null); return; }
                         onToggleCompleted(work.id);
                       }}
-                      onMouseDown={(e) => { if (!sortMode && !selectMode && !locked) handlePressStart(work.id, 0, 0); else e.preventDefault(); }}
+                      onMouseDown={(e) => { if (!sortMode && !selectMode && !locked) handlePressStart(work.id); else e.preventDefault(); }}
                       onMouseUp={handlePressEnd}
                       onMouseLeave={handlePressEnd}
                       onTouchStart={(e) => { if (!sortMode && !selectMode && !locked) handleTouchStart(e, work.id); }}
                       onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
                       onContextMenu={(e) => { if (!sortMode && !selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
                       className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border flex items-center gap-3"
-                      style={{
-                        backgroundColor: done ? hex : "#24283b",
-                        borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? hex : "#3b4261",
-                        outline: isChecked ? "2px solid #7aa2f744" : "none",
-                      }}
+                      style={{ backgroundColor: done ? hex : "#24283b", borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? hex : "#3b4261", outline: isChecked ? "2px solid #7aa2f744" : "none" }}
                     >
                       {sortMode && (
-                        <span className="text-lg cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
-                          style={{ color: done ? "#1a1b2666" : "#4a5177" }}
+                        <span className="cursor-grab active:cursor-grabbing touch-none select-none shrink-0" style={{ color: done ? "#1a1b2666" : "#4a5177" }}
                           onMouseDown={(e) => handleMouseDragStart(e, work.id)}
                           onTouchStart={(e) => { e.stopPropagation(); handleTouchDragStart(e, work.id); }}
                         ><GripVertical size={20} /></span>
@@ -529,7 +501,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                         if (isSelected) { setSelectedId(null); return; }
                         onSelect(work);
                       }}
-                      onMouseDown={(e) => { if (!sortMode && !selectMode) handlePressStart(work.id, 0, 0); else e.preventDefault(); }}
+                      onMouseDown={(e) => { if (!sortMode && !selectMode) handlePressStart(work.id); else e.preventDefault(); }}
                       onMouseUp={handlePressEnd}
                       onMouseLeave={handlePressEnd}
                       onTouchStart={(e) => { if (!sortMode && !selectMode) handleTouchStart(e, work.id); }}
@@ -591,9 +563,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
               <div className="bg-[#1f2335] border border-[#3b4261] rounded-2xl p-4 space-y-3">
                 <p className="text-xs text-[#787c99]">タグ操作（{selectedIds.size}件）</p>
                 <div className="flex gap-2">
-                  <input
-                    value={tagActionInput}
-                    onChange={(e) => setTagActionInput(e.target.value)}
+                  <input value={tagActionInput} onChange={(e) => setTagActionInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); bulkAddTag(tagActionInput); } }}
                     placeholder="追加するタグを入力"
                     className="flex-1 bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#7aa2f7]"
@@ -614,43 +584,21 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
               </div>
             ) : (
               <div className="flex gap-2">
-                {/* 上へ移動 */}
-                <button
-                  onClick={() => moveSelectedItems("up")}
-                  className="w-12 py-3 rounded-2xl border border-[#3b4261] text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center"
-                  title="上へ移動"
-                ><ArrowUp size={18} /></button>
-                {/* 下へ移動 */}
-                <button
-                  onClick={() => moveSelectedItems("down")}
-                  className="w-12 py-3 rounded-2xl border border-[#3b4261] text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center"
-                  title="下へ移動"
-                ><ArrowDown size={18} /></button>
-                {/* タグ操作 */}
-                <button
-                  onClick={() => setShowTagAction(true)}
-                  className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center gap-2"
-                ><Tag size={16} /> タグ操作</button>
-                {/* キャンセル */}
-                <button
-                  onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}
-                  className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#787c99] bg-[#24283b] active:scale-95 transition-transform"
-                >キャンセル</button>
+                <button onClick={() => moveSelectedItems("up")} className="w-12 py-3 rounded-2xl border border-[#3b4261] text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center" title="上へ移動"><ArrowUp size={18} /></button>
+                <button onClick={() => moveSelectedItems("down")} className="w-12 py-3 rounded-2xl border border-[#3b4261] text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center" title="下へ移動"><ArrowDown size={18} /></button>
+                <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center gap-2"><Tag size={16} /> タグ操作</button>
+                <button onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#787c99] bg-[#24283b] active:scale-95 transition-transform">キャンセル</button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 通常の追加ボタン */}
+      {/* 追加ボタン */}
       {!selectMode && !locked && (
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
           <div className="max-w-lg mx-auto">
-            <button
-              onClick={() => setShowAdd(true)}
-              className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 text-[#1a1b26]"
-              style={{ backgroundColor: folderHex, boxShadow: `0 4px 24px ${folderHex}33` }}
-            >
+            <button onClick={() => setShowAdd(true)} className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 text-[#1a1b26]" style={{ backgroundColor: folderHex, boxShadow: `0 4px 24px ${folderHex}33` }}>
               <Plus size={20} /><span>新しい項目を追加</span>
             </button>
           </div>

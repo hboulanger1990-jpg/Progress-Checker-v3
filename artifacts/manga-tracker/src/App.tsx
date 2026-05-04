@@ -143,7 +143,9 @@ export default function App() {
     const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: [work, ...f.works], updatedAt: Date.now() }));
   }
-  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags" | "sortOrder">>) {
+
+  // タイトル・色などの編集（updatedAt更新あり）
+  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) {
     mutate((prev) => prev.map((f) => {
       if (f.id !== folderId) return f;
       const updatedWorks = f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() });
@@ -151,6 +153,23 @@ export default function App() {
       return { ...f, updatedAt: Date.now(), works: sorted };
     }));
   }
+
+  // 並び順のみ更新（updatedAt更新なし）
+  function setWorkSortOrder(folderId: string, workId: string, sortOrder: import("./types").SortOrder) {
+    mutate((prev) => prev.map((f) => {
+      if (f.id !== folderId) return f;
+      return { ...f, works: f.works.map((w) => w.id !== workId ? w : { ...w, sortOrder }) };
+    }));
+  }
+
+  // フォルダ内全workの並び順を一括更新（updatedAt更新なし）
+  function setFolderWorksSortOrder(folderId: string, sortOrder: import("./types").SortOrder) {
+    mutate((prev) => prev.map((f) => {
+      if (f.id !== folderId) return f;
+      return { ...f, works: f.works.map((w) => ({ ...w, sortOrder })) };
+    }));
+  }
+
   function deleteWork(folderId: string, workId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: f.works.filter((w) => w.id !== workId), updatedAt: Date.now() }));
   }
@@ -175,6 +194,35 @@ export default function App() {
   function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items" | "sortOrder">>) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
+
+  // セクション並び順のみ更新（updatedAt更新なし）
+  function setSectionSortOrder(folderId: string, workId: string, sectionId: string, sortOrder: import("./types").SortOrder) {
+    mutate((prev) => prev.map((f) => {
+      if (f.id !== folderId) return f;
+      return {
+        ...f,
+        works: f.works.map((w) => {
+          if (w.id !== workId) return w;
+          return { ...w, sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, sortOrder }) };
+        }),
+      };
+    }));
+  }
+
+  // 全セクション並び順一括更新（updatedAt更新なし）
+  function setAllSectionsSortOrder(folderId: string, workId: string, sortOrder: import("./types").SortOrder) {
+    mutate((prev) => prev.map((f) => {
+      if (f.id !== folderId) return f;
+      return {
+        ...f,
+        works: f.works.map((w) => {
+          if (w.id !== workId) return w;
+          return { ...w, sections: w.sections.map((s) => ({ ...s, sortOrder })) };
+        }),
+      };
+    }));
+  }
+
   function deleteSection(folderId: string, workId: string, sectionId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.filter((s) => s.id !== sectionId) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
@@ -246,6 +294,7 @@ export default function App() {
           onEdit={(wId, updates) => editWork(currentFolder.id, wId, updates)}
           onDelete={(wId) => deleteWork(currentFolder.id, wId)}
           onReorder={(newWorks) => reorderWorks(currentFolder.id, newWorks)}
+          onSetSortOrder={(order) => setFolderWorksSortOrder(currentFolder.id, order)}
         />
       )}
       {view.screen === "detail" && currentFolder && currentWork && (
@@ -263,6 +312,8 @@ export default function App() {
           onToggleItem={(sId, n) => toggleItem(currentFolder.id, currentWork.id, sId, n)}
           onReorderSections={(newSections) => reorderSections(currentFolder.id, currentWork.id, newSections)}
           onReorderItems={(sId, newItems, newStatuses) => reorderItems(currentFolder.id, currentWork.id, sId, newItems, newStatuses)}
+          onSetSectionSortOrder={(sId, order) => setSectionSortOrder(currentFolder.id, currentWork.id, sId, order)}
+          onSetAllSectionsSortOrder={(order) => setAllSectionsSortOrder(currentFolder.id, currentWork.id, order)}
         />
       )}
     </div>

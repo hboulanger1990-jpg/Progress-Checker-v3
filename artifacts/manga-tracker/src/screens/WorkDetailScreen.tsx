@@ -1,4 +1,4 @@
-import { Settings, Trash2, ArrowUpDown, Search, ArrowLeft, X, Plus, GripVertical, Grid2x2Check, LockKeyhole, LockKeyholeOpen, SlidersHorizontal, Check } from "lucide-react";
+import { Settings, Trash2, Search, ArrowLeft, X, Plus, GripVertical, Grid2x2Check, LockKeyhole, LockKeyholeOpen, SlidersHorizontal, Check } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { Folder, Work, Section, SortOrder } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -48,7 +48,6 @@ export default function WorkDetailScreen({
   const [sectionModal, setSectionModal] = useState<SectionModalState>(null);
   const [textSearch, setTextSearch] = useState("");
   const [showTextSearch, setShowTextSearch] = useState(false);
-  const [sortMode, setSortMode] = useState(false);
 
   const [sectionSortOrder, setSectionSortOrder] = useState<SortOrder>(() => work.sections[0]?.sortOrder ?? "default");
   const [showSectionSortMenu, setShowSectionSortMenu] = useState(false);
@@ -70,8 +69,6 @@ export default function WorkDetailScreen({
   const secLabel = work.sectionLabel || "セクション";
   const ltKey = `${LAST_TOGGLE_PREFIX}${work.id}`;
   const hasTextSections = work.sections.some((s) => s.mode === "text");
-
-  useEffect(() => { if (locked) setSortMode(false); }, [locked]);
 
   useEffect(() => {
     const raw = localStorage.getItem(ltKey);
@@ -143,11 +140,11 @@ export default function WorkDetailScreen({
   function handleSectionSortChange(order: SortOrder) {
     setSectionSortOrder(order);
     setShowSectionSortMenu(false);
-    onSetAllSectionsSortOrder(order); // updatedAt更新なし
+    onSetAllSectionsSortOrder(order);
   }
 
   function handleItemSortChange(sectionId: string, order: SortOrder) {
-    onSetSectionSortOrder(sectionId, order); // updatedAt更新なし
+    onSetSectionSortOrder(sectionId, order);
     setShowItemSortMenu(null);
   }
 
@@ -287,7 +284,7 @@ export default function WorkDetailScreen({
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
               {/* セクション並び順ボタン */}
-              {!sortMode && work.sections.length > 1 && (
+              {work.sections.length > 1 && (
                 <div className="relative">
                   <button
                     onClick={(e) => { e.stopPropagation(); if (!locked) setShowSectionSortMenu((v) => !v); }}
@@ -313,19 +310,8 @@ export default function WorkDetailScreen({
                 </div>
               )}
 
-              {/* 並び替えボタン */}
-              <button
-                onClick={() => { if (locked) return; setSortMode((v) => !v); setShowTextSearch(false); }}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
-                style={sortMode
-                  ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
-                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
-                }
-                title="並び替えモード"
-              ><ArrowUpDown size={20} /></button>
-
               {/* テキスト検索ボタン */}
-              {hasTextSections && !sortMode && (
+              {hasTextSections && (
                 <button onClick={() => setShowTextSearch((v) => !v)}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border active:scale-95 transition-transform"
                   style={{ color: showTextSearch ? accentHex : "#787c99", borderColor: showTextSearch ? accentHex : "#3b4261" }}
@@ -366,9 +352,7 @@ export default function WorkDetailScreen({
         </div>
       </div>
 
-      {sortMode && <div className="px-4 py-1.5 max-w-lg mx-auto w-full"><p className="text-xs text-[#787c99] text-center">ハンドルをドラッグして並び替え　↕ で終了</p></div>}
-
-      {hasTextSections && showTextSearch && !sortMode && (
+      {hasTextSections && showTextSearch && (
         <div className="px-4 mb-2 max-w-lg mx-auto w-full">
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
@@ -393,7 +377,7 @@ export default function WorkDetailScreen({
           </div>
         ) : (
           <div className="space-y-5">
-            {sortMode && draggingSectionId && dragOverSectionIdx === 0 && <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />}
+            {draggingSectionId && dragOverSectionIdx === 0 && <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />}
             {filteredSections().map((section, sectionIndex) => {
               const sectionWithFilter = section as Section & { _filteredItems?: string[] };
               const rawItems = sectionWithFilter._filteredItems ?? section.items ?? [];
@@ -407,7 +391,8 @@ export default function WorkDetailScreen({
                   <div data-section-id={section.id} className={`transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""}`}>
                     <div className="flex items-center justify-between mb-2 px-1">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {sortMode && (
+                        {/* セクションドラッグハンドル（常時表示） */}
+                        {!locked && work.sections.length > 1 && (
                           <button
                             className="shrink-0 w-7 h-7 flex items-center justify-center text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none"
                             onTouchStart={(e) => { e.stopPropagation(); startSectionDrag(section.id); }}
@@ -462,7 +447,7 @@ export default function WorkDetailScreen({
                         </div>
                       </div>
                       <div className="flex gap-1 items-center">
-                        {section.mode === "text" && !sortMode && (
+                        {section.mode === "text" && (
                           <div className="relative">
                             <button
                               onClick={(e) => { e.stopPropagation(); if (!locked) setShowItemSortMenu((v) => v === section.id ? null : section.id); }}
@@ -498,7 +483,7 @@ export default function WorkDetailScreen({
 
                     {section.mode === "text" && section.items ? (
                       <div className="space-y-1.5">
-                        {sortMode && draggingItem?.sectionId === section.id && dragOverItemIdx === 0 && <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />}
+                        {draggingItem?.sectionId === section.id && dragOverItemIdx === 0 && <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />}
                         {displayItems.map((itemLabel, idx) => {
                           const realIdx = section.items!.indexOf(itemLabel);
                           const num = section.startNum + realIdx;
@@ -509,17 +494,16 @@ export default function WorkDetailScreen({
                               <button
                                 id={`item-${section.id}-${num}`}
                                 data-item-section={section.id}
-                                onClick={() => !sortMode && handleToggle(section.id, num)}
+                                onClick={() => handleToggle(section.id, num)}
                                 onTouchStart={(e) => { e.stopPropagation(); }}
-                                className={`w-full border rounded-xl px-4 py-3 text-left text-sm font-medium select-none touch-manipulation transition-all duration-100 ${isDraggingThisItem ? "opacity-40" : ""} ${sortMode || locked ? "" : "active:scale-[0.98]"}`}
+                                className={`w-full border rounded-xl px-4 py-3 text-left text-sm font-medium select-none touch-manipulation transition-all duration-100 ${isDraggingThisItem ? "opacity-40" : ""} ${locked ? "" : "active:scale-[0.98]"}`}
                                 style={isRead ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex } : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }}
                               >
                                 <div className="flex items-center gap-2">
-                                  {sortMode && (
+                                  {!locked && (
                                     <span className="text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
                                       onTouchStart={(e) => { e.stopPropagation(); startItemDrag(section.id, idx); }}
                                       onMouseDown={(e) => {
-                                        if (!sortMode) return;
                                         e.stopPropagation();
                                         setDraggingItem({ sectionId: section.id, idx });
                                         const onMove = (me: MouseEvent) => {
@@ -567,7 +551,7 @@ export default function WorkDetailScreen({
                                   <span className="whitespace-pre-wrap break-words flex-1">{itemLabel}</span>
                                 </div>
                               </button>
-                              {sortMode && draggingItem?.sectionId === section.id && dragOverItemIdx === idx + 1 && <div className="h-0.5 rounded-full mx-1 mt-1.5" style={{ backgroundColor: accentHex }} />}
+                              {draggingItem?.sectionId === section.id && dragOverItemIdx === idx + 1 && <div className="h-0.5 rounded-full mx-1 mt-1.5" style={{ backgroundColor: accentHex }} />}
                             </div>
                           );
                         })}
@@ -587,7 +571,7 @@ export default function WorkDetailScreen({
                       </div>
                     )}
                   </div>
-                  {sortMode && draggingSectionId && dragOverSectionIdx === sectionIndex + 1 && <div className="h-0.5 rounded-full mx-1 mt-5" style={{ backgroundColor: accentHex }} />}
+                  {draggingSectionId && dragOverSectionIdx === sectionIndex + 1 && <div className="h-0.5 rounded-full mx-1 mt-5" style={{ backgroundColor: accentHex }} />}
                 </div>
               );
             })}

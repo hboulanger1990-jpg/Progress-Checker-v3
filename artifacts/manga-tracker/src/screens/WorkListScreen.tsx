@@ -1,4 +1,4 @@
-import { Settings, Pencil, Trash2, ArrowUpDown, Search, ArrowLeft, X, Plus, Check, GripVertical, Grid2x2Check, ListChecks, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Tag, SlidersHorizontal, ArrowUp, ArrowDown } from "lucide-react";
+import { Pencil, Trash2, Search, ArrowLeft, X, Plus, Check, Grid2x2Check, ListChecks, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Tag, SlidersHorizontal, ArrowUp, ArrowDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { Folder, Work, SortOrder } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -24,7 +24,7 @@ interface Props {
   onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) => void;
   onDelete: (workId: string) => void;
   onReorder: (newWorks: Work[]) => void;
-  onSetSortOrder: (order: SortOrder) => void; // updatedAt更新なし
+  onSetSortOrder: (order: SortOrder) => void;
 }
 
 const READ_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
@@ -48,10 +48,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Work | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [sortMode, setSortMode] = useState(false);
-  const [sortBaseOrder, setSortBaseOrder] = useState<Work[]>(folder.works);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
   // 複数選択モード
@@ -60,7 +56,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   const [showTagAction, setShowTagAction] = useState(false);
   const [tagActionInput, setTagActionInput] = useState("");
 
-  // 並び順（folderのworksから初期値を取得）
+  // 並び順
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => folder.works[0]?.sortOrder ?? "default");
   const [showSortMenu, setShowSortMenu] = useState(false);
 
@@ -84,7 +80,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
 
   useEffect(() => {
     if (locked) {
-      setSortMode(false);
       setSelectMode(false);
       setSelectedIds(new Set());
       setSelectedId(null);
@@ -111,20 +106,19 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     }
   }
 
-  const sortedFiltered = sortMode
-    ? sortBaseOrder
-    : sortOrder !== "default"
-      ? applyWorkSortOrder(filtered)
-      : isReadMode
-        ? filtered
-        : [...filtered].sort((a, b) => {
-            const pa = calcWorkProgress(a.sections).percent;
-            const pb = calcWorkProgress(b.sections).percent;
-            const rankA = pa === 100 ? 2 : pa === 0 ? 1 : 0;
-            const rankB = pb === 100 ? 2 : pb === 0 ? 1 : 0;
-            if (rankA !== rankB) return rankA - rankB;
-            return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-          });
+  // 並び順がdefaultのとき、進捗タイプは登録順（folder.worksの順）をそのまま使う
+  const sortedFiltered = sortOrder !== "default"
+    ? applyWorkSortOrder(filtered)
+    : isReadMode
+      ? filtered
+      : [...filtered].sort((a, b) => {
+          const pa = calcWorkProgress(a.sections).percent;
+          const pb = calcWorkProgress(b.sections).percent;
+          const rankA = pa === 100 ? 2 : pa === 0 ? 1 : 0;
+          const rankB = pb === 100 ? 2 : pb === 0 ? 1 : 0;
+          if (rankA !== rankB) return rankA - rankB;
+          return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+        });
 
   function handleDelete(w: Work) {
     if (!window.confirm(`「${w.title}」を削除しますか？この操作は元に戻せません。`)) return;
@@ -133,7 +127,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   }
 
   function handlePressStart(id: string) {
-    if (sortMode || locked || selectMode) return;
+    if (locked || selectMode) return;
     longPressTimer.current = setTimeout(() => setSelectedId(id), 500);
   }
   function handlePressEnd() {
@@ -142,58 +136,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   function handleTouchStart(e: React.TouchEvent, id: string) {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     handlePressStart(id);
-  }
-
-  function calcDragOverIdx(clientY: number): number {
-    const els = document.querySelectorAll("[data-work-id]");
-    let found = 0;
-    for (let i = 0; i < els.length; i++) {
-      const rect = els[i].getBoundingClientRect();
-      if (clientY < rect.top + rect.height / 2) { found = i; return found; }
-      found = i + 1;
-    }
-    return found;
-  }
-
-  function applyReorder(fromId: string, overIdx: number) {
-    const list = [...folder.works];
-    const fromIdx = list.findIndex((w) => w.id === fromId);
-    if (fromIdx === -1) return;
-    const adjustedTo = overIdx > fromIdx ? overIdx - 1 : overIdx;
-    if (adjustedTo === fromIdx) return;
-    const [moved] = list.splice(fromIdx, 1);
-    list.splice(adjustedTo, 0, moved);
-    onReorder(list);
-  }
-
-  function handleMouseDragStart(e: React.MouseEvent, id: string) {
-    if (!sortMode) return;
-    e.preventDefault();
-    setDraggingId(id);
-    const onMove = (me: MouseEvent) => { setDragOverIdx(calcDragOverIdx(me.clientY)); };
-    const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      setDraggingId((cur) => { setDragOverIdx((over) => { if (cur && over !== null) applyReorder(cur, over); return null; }); return null; });
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }
-
-  function handleTouchDragStart(e: React.TouchEvent, id: string) {
-    if (!sortMode) return;
-    e.stopPropagation();
-    setDraggingId(id);
-  }
-  function handleTouchDragMove(e: React.TouchEvent) {
-    if (!sortMode || !draggingId) return;
-    e.preventDefault();
-    setDragOverIdx(calcDragOverIdx(e.touches[0].clientY));
-  }
-  function handleTouchDragEnd() {
-    if (draggingId && dragOverIdx !== null) applyReorder(draggingId, dragOverIdx);
-    setDraggingId(null);
-    setDragOverIdx(null);
   }
 
   function handleDragOver(e: React.DragEvent) { e.preventDefault(); setIsDragOver(true); }
@@ -214,7 +156,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   }
 
-  // 一括上下移動（folder.worksの実際の順番を基準に動かす）
+  // 一括上下移動
+  // 移動後はsortOrderをdefaultに切り替えてupdatedAtソートを無効化
   function moveSelectedItems(direction: "up" | "down") {
     const list = [...folder.works];
     const indices = Array.from(selectedIds)
@@ -236,6 +179,11 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
       }
     }
     onReorder(list);
+    // 進捗タイプはupdatedAtソートと干渉するのでdefaultに切り替え
+    if (!isReadMode && sortOrder !== "default") {
+      setSortOrder("default");
+      onSetSortOrder("default");
+    }
   }
 
   function bulkAddTag(tag: string) {
@@ -263,26 +211,21 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   const selectedWorks = folder.works.filter((w) => selectedIds.has(w.id));
   const commonTags = allTags.filter((tag) => selectedWorks.every((w) => (w.tags ?? []).includes(tag)));
 
-  // 並び順変更（updatedAt更新なし専用関数を使う）
   function handleSortOrderChange(order: SortOrder) {
     setSortOrder(order);
     setShowSortMenu(false);
     onSetSortOrder(order);
   }
 
-  const currentSortLabel = sortOptions.find((o) => o.value === sortOrder)?.label ?? "登録順";
-
   return (
     <div
       className="min-h-screen bg-[#1a1b26] flex flex-col relative"
       onTouchStart={(e) => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
       onTouchEnd={(e) => {
-        handleTouchDragEnd();
         const dx = e.changedTouches[0].clientX - touchStart.current.x;
         const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
-        if (!sortMode && touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
+        if (touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
       }}
-      onTouchMove={(e) => handleTouchDragMove(e)}
       onClick={() => { setSelectedId(null); setShowSortMenu(false); }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -319,7 +262,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
               {/* 並び順ボタン */}
-              {!sortMode && !selectMode && (
+              {!selectMode && (
                 <div className="relative">
                   <button
                     onClick={(e) => { e.stopPropagation(); if (!locked) setShowSortMenu((v) => !v); }}
@@ -333,10 +276,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     title="並び順"
                   ><SlidersHorizontal size={16} /></button>
                   {showSortMenu && (
-                    <div
-                      className="absolute right-0 top-10 z-30 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-2xl overflow-hidden min-w-[160px]"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="absolute right-0 top-10 z-30 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-2xl overflow-hidden min-w-[160px]" onClick={(e) => e.stopPropagation()}>
                       {sortOptions.map((opt) => (
                         <button key={opt.value} onClick={() => handleSortOrderChange(opt.value)}
                           className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
@@ -348,35 +288,24 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 </div>
               )}
 
-              {/* 複数選択ボタン */}
-              {!sortMode && (
-                <button
-                  onClick={() => { if (locked) return; setSelectMode((v) => { if (v) setSelectedIds(new Set()); return !v; }); setSelectedId(null); }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
-                  style={selectMode
-                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
-                  }
-                  title="複数選択"
-                ><CheckSquare size={16} /></button>
-              )}
-
-              {/* 並び替えボタン */}
-              {!selectMode && (
-                <button
-                  onClick={() => { if (locked) return; if (!sortMode) setSortBaseOrder([...sortedFiltered]); setSortMode((v) => !v); setSelectedId(null); }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
-                  style={sortMode
-                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
-                  }
-                  title="並び替えモード"
-                ><ArrowUpDown size={20} /></button>
-              )}
+              {/* 複数選択ボタン（ON/OFFトグル） */}
+              <button
+                onClick={() => {
+                  if (locked) return;
+                  setSelectMode((v) => { if (v) setSelectedIds(new Set()); return !v; });
+                  setSelectedId(null);
+                }}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
+                style={selectMode
+                  ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
+                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
+                }
+                title="複数選択"
+              ><CheckSquare size={16} /></button>
             </div>
           </div>
 
-          {!sortMode && !selectMode && (
+          {!selectMode && (
             <>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
@@ -400,8 +329,9 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
               )}
             </>
           )}
-          {sortMode && <p className="text-xs text-[#787c99] text-center py-1">ハンドルをドラッグして並び替え　↕ で終了</p>}
-          {selectMode && <p className="text-xs text-[#787c99] text-center py-1">{selectedIds.size > 0 ? `${selectedIds.size}件選択中` : "タップして選択"}</p>}
+          {selectMode && (
+            <p className="text-xs text-[#787c99] text-center py-1">{selectedIds.size > 0 ? `${selectedIds.size}件選択中` : "タップして選択　もう一度押すと終了"}</p>
+          )}
         </div>
       </header>
 
@@ -414,140 +344,116 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
           </div>
         ) : isReadMode ? (
           <div className="space-y-2">
-            {sortMode && draggingId && dragOverIdx === 0 && <div className="h-0.5 rounded-full" style={{ backgroundColor: folderHex }} />}
-            {sortedFiltered.map((work, workIndex) => {
+            {sortedFiltered.map((work) => {
               const hex = ACCENT_COLORS[work.accentColor].hex;
               const done = !!work.completed;
               const isSelected = selectedId === work.id;
-              const isDraggingThis = draggingId === work.id;
               const isChecked = selectedIds.has(work.id);
               return (
-                <div key={work.id}>
-                  <div data-work-id={work.id} className={`relative transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""}`}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (sortMode) return;
-                        if (selectMode) { toggleSelectId(work.id); return; }
-                        if (locked) return;
-                        if (isSelected) { setSelectedId(null); return; }
-                        onToggleCompleted(work.id);
-                      }}
-                      onMouseDown={(e) => { if (!sortMode && !selectMode && !locked) handlePressStart(work.id); else e.preventDefault(); }}
-                      onMouseUp={handlePressEnd}
-                      onMouseLeave={handlePressEnd}
-                      onTouchStart={(e) => { if (!sortMode && !selectMode && !locked) handleTouchStart(e, work.id); }}
-                      onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
-                      onContextMenu={(e) => { if (!sortMode && !selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
-                      className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border flex items-center gap-3"
-                      style={{ backgroundColor: done ? hex : "#24283b", borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? hex : "#3b4261", outline: isChecked ? "2px solid #7aa2f744" : "none" }}
-                    >
-                      {sortMode && (
-                        <span className="cursor-grab active:cursor-grabbing touch-none select-none shrink-0" style={{ color: done ? "#1a1b2666" : "#4a5177" }}
-                          onMouseDown={(e) => handleMouseDragStart(e, work.id)}
-                          onTouchStart={(e) => { e.stopPropagation(); handleTouchDragStart(e, work.id); }}
-                        ><GripVertical size={20} /></span>
-                      )}
-                      {selectMode && (
-                        <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "#4a5177" }}>
-                          {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all"
-                          style={{ borderColor: done ? "#1a1b26" : hex, backgroundColor: done ? "#1a1b26" : "transparent", color: done ? hex : "transparent" }}
-                        ><Check size={20} /></span>
-                        <span className="font-bold text-sm leading-tight truncate flex-1 min-w-0" style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
-                        {work.tags && work.tags.length > 0 && (
-                          <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[45%]">
-                            {work.tags.map((tag) => (
-                              <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
-                                style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
-                              >#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                    {isSelected && !sortMode && !selectMode && !locked && (
-                      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"><Pencil size={16} /> 編集</button>
-                        <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
-                      </div>
+                <div key={work.id} className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selectMode) { toggleSelectId(work.id); return; }
+                      if (locked) return;
+                      if (isSelected) { setSelectedId(null); return; }
+                      onToggleCompleted(work.id);
+                    }}
+                    onMouseDown={() => { if (!selectMode && !locked) handlePressStart(work.id); }}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handlePressEnd}
+                    onTouchStart={(e) => { if (!selectMode && !locked) handleTouchStart(e, work.id); }}
+                    onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
+                    onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
+                    className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border flex items-center gap-3"
+                    style={{ backgroundColor: done ? hex : "#24283b", borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? hex : "#3b4261", outline: isChecked ? "2px solid #7aa2f744" : "none" }}
+                  >
+                    {selectMode && (
+                      <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "#4a5177" }}>
+                        {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
+                      </span>
                     )}
-                  </div>
-                  {sortMode && draggingId && dragOverIdx === workIndex + 1 && <div className="h-0.5 rounded-full mt-2" style={{ backgroundColor: folderHex }} />}
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all"
+                        style={{ borderColor: done ? "#1a1b26" : hex, backgroundColor: done ? "#1a1b26" : "transparent", color: done ? hex : "transparent" }}
+                      ><Check size={20} /></span>
+                      <span className="font-bold text-sm leading-tight truncate flex-1 min-w-0" style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
+                      {work.tags && work.tags.length > 0 && (
+                        <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[45%]">
+                          {work.tags.map((tag) => (
+                            <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                              style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
+                            >#{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                  {isSelected && !selectMode && !locked && (
+                    <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"><Pencil size={16} /> 編集</button>
+                      <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         ) : (
           <div className="space-y-2">
-            {sortMode && draggingId && dragOverIdx === 0 && <div className="h-0.5 rounded-full" style={{ backgroundColor: folderHex }} />}
-            {sortedFiltered.map((work, workIndex) => {
+            {sortedFiltered.map((work) => {
               const { read, total, percent } = calcWorkProgress(work.sections);
               const hex = ACCENT_COLORS[work.accentColor].hex;
               const isSelected = selectedId === work.id;
-              const isDraggingThis = draggingId === work.id;
               const isChecked = selectedIds.has(work.id);
               return (
-                <div key={work.id}>
-                  <div data-work-id={work.id} className={`relative transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""}`}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (sortMode) return;
-                        if (selectMode) { toggleSelectId(work.id); return; }
-                        if (isSelected) { setSelectedId(null); return; }
-                        onSelect(work);
-                      }}
-                      onMouseDown={(e) => { if (!sortMode && !selectMode) handlePressStart(work.id); else e.preventDefault(); }}
-                      onMouseUp={handlePressEnd}
-                      onMouseLeave={handlePressEnd}
-                      onTouchStart={(e) => { if (!sortMode && !selectMode) handleTouchStart(e, work.id); }}
-                      onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
-                      onContextMenu={(e) => { if (!sortMode && !selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
-                      className={`w-full bg-[#24283b] border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked || isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"}`}
-                    >
-                      {sortMode && (
-                        <span className="text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
-                          onMouseDown={(e) => handleMouseDragStart(e, work.id)}
-                          onTouchStart={(e) => { e.stopPropagation(); handleTouchDragStart(e, work.id); }}
-                        ><GripVertical size={20} /></span>
-                      )}
-                      {selectMode && (
-                        <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "#4a5177" }}>
-                          {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
-                        </span>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="font-bold text-[#c0caf5] text-sm leading-tight truncate">{work.title}</span>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs text-[#787c99]">{read}/{total}{work.unit}</span>
-                            <span className="text-xs font-bold" style={{ color: hex }}>{percent}%</span>
-                          </div>
-                        </div>
-                        <div className="h-1 bg-[#1a1b26] rounded-full overflow-hidden mb-1.5">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: hex }} />
-                        </div>
-                        {work.tags && work.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {work.tags.map((tag) => (
-                              <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${hex}22`, color: hex }}>#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                    {isSelected && !sortMode && !selectMode && !locked && (
-                      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"><Pencil size={16} /> 編集</button>
-                        <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
-                      </div>
+                <div key={work.id} className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selectMode) { toggleSelectId(work.id); return; }
+                      if (isSelected) { setSelectedId(null); return; }
+                      onSelect(work);
+                    }}
+                    onMouseDown={() => { if (!selectMode) handlePressStart(work.id); }}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handlePressEnd}
+                    onTouchStart={(e) => { if (!selectMode) handleTouchStart(e, work.id); }}
+                    onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
+                    onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
+                    className={`w-full bg-[#24283b] border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked || isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"}`}
+                  >
+                    {selectMode && (
+                      <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "#4a5177" }}>
+                        {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
+                      </span>
                     )}
-                  </div>
-                  {sortMode && draggingId && dragOverIdx === workIndex + 1 && <div className="h-0.5 rounded-full mt-2" style={{ backgroundColor: folderHex }} />}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="font-bold text-[#c0caf5] text-sm leading-tight truncate">{work.title}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-[#787c99]">{read}/{total}{work.unit}</span>
+                          <span className="text-xs font-bold" style={{ color: hex }}>{percent}%</span>
+                        </div>
+                      </div>
+                      <div className="h-1 bg-[#1a1b26] rounded-full overflow-hidden mb-1.5">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: hex }} />
+                      </div>
+                      {work.tags && work.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {work.tags.map((tag) => (
+                            <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${hex}22`, color: hex }}>#{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                  {isSelected && !selectMode && !locked && (
+                    <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"><Pencil size={16} /> 編集</button>
+                      <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -587,7 +493,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 <button onClick={() => moveSelectedItems("up")} className="w-12 py-3 rounded-2xl border border-[#3b4261] text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center" title="上へ移動"><ArrowUp size={18} /></button>
                 <button onClick={() => moveSelectedItems("down")} className="w-12 py-3 rounded-2xl border border-[#3b4261] text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center" title="下へ移動"><ArrowDown size={18} /></button>
                 <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center gap-2"><Tag size={16} /> タグ操作</button>
-                <button onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#787c99] bg-[#24283b] active:scale-95 transition-transform">キャンセル</button>
               </div>
             )}
           </div>

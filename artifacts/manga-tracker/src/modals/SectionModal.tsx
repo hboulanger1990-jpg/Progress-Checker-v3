@@ -1,4 +1,4 @@
-import { FileDigit, FileType2, Pencil, Plus } from "lucide-react";
+import { FileDigit, FileType2, Plus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import type { Section } from "../types";
 
@@ -15,10 +15,6 @@ interface Props {
 const SECTION_MODE_KEY = "pc-section-mode-";
 
 export default function SectionModal({ mode, initial, defaults, labelName = "セクション", workId, onClose, onSave }: Props) {
-  const debugClose = () => {
-  console.trace("onClose called");
-  onClose();
-};
   const [label, setLabel] = useState(initial?.label ?? defaults?.label ?? "");
   const [startNum, setStartNum] = useState(String(initial?.startNum ?? defaults?.startNum ?? 1));
   const [endNum, setEndNum] = useState(
@@ -114,9 +110,27 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
         className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
         style={{ maxHeight: "90dvh" }}
       >
-        <h2 className="text-lg font-bold text-[#c0caf5] mb-5">
-          {mode === "add" ? `${labelName}を追加` : `${labelName}を編集`}
-        </h2>
+        {/* タイトル行 + ボタン */}
+        <div className="flex items-center justify-between gap-3 mb-5">
+          <h2 className="text-lg font-bold text-[#c0caf5]">
+            {mode === "add" ? `${labelName}を追加` : `${labelName}を編集`}
+          </h2>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+            >
+              {mode === "add" ? "追加" : "保存"}
+            </button>
+          </div>
+        </div>
+
         <div className="space-y-4">
           <div>
             <label className="block text-xs text-[#787c99] mb-1">{labelName}名</label>
@@ -141,7 +155,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                     : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
                 }
               >
-                <FileDigit size={20}  className="inline" /> 数字
+                <FileDigit size={20} className="inline" /> 数字
               </button>
               <button
                 onClick={() => handleSetMode("text")}
@@ -152,7 +166,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                     : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
                 }
               >
-                <FileType2 size={20}  className="inline"/> テキスト
+                <FileType2 size={20} className="inline" /> テキスト
               </button>
             </div>
           </div>
@@ -183,10 +197,9 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
           ) : (
             <div>
               <label className="block text-xs text-[#787c99] mb-2">
-                項目（Enterで下に追加・複数行コピペ可）
+                項目（Enterで下に追加・複数行コピー可）
               </label>
 
-              {/* 一番上に追加ボタン */}
               <button
                 onClick={() => insertItem(0)}
                 className="w-full mb-1.5 py-1 rounded-lg border border-dashed border-[#3b4261] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
@@ -211,7 +224,6 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                         className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a1b26] text-[#f7768e] border border-[#3b4261] active:scale-95"
                       >×</button>
                     </div>
-                    {/* 各項目の下に追加ボタン */}
                     <button
                       onClick={() => insertItem(index + 1)}
                       className="w-full mt-1 py-0.5 rounded border border-dashed border-[#2a2d3e] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
@@ -221,19 +233,11 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-[#4a5177] mt-2">※テキスト入力中は外側クリックで閉じません</p>
+              <p className="text-xs text-[#4a5177] mt-2">※ テキスト入力中は背景クリックで閉じません</p>
             </div>
           )}
 
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
-        </div>
-        <div className="mt-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform">
-            キャンセル
-          </button>
-          <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform">
-            {mode === "add" ? "追加" : "保存"}
-          </button>
         </div>
       </div>
     </div>

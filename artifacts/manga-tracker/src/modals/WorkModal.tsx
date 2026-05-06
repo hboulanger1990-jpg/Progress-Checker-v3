@@ -34,7 +34,6 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
   const [error, setError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const tagInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 80); }, []);
 
@@ -44,7 +43,6 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
     return () => document.removeEventListener("visibilitychange", handler, true);
   }, []);
 
-  // ⑥ タグ候補：入力値でフィルタ<Plus size={20} />まだ追加していないもの
   const tagSuggestions = existingTags.filter(
     (t) => !tags.includes(t) && (tagInput.trim() === "" || t.toLowerCase().includes(tagInput.toLowerCase()))
   );
@@ -85,9 +83,27 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
         className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
         style={{ maxHeight: "90dvh" }}
       >
-        <h2 className="text-lg font-bold text-[#c0caf5] mb-5">
-          {mode === "add" ? "項目を追加" : "項目を編集"}
-        </h2>
+        {/* タイトル行 + ボタン */}
+        <div className="flex items-center justify-between gap-3 mb-5">
+          <h2 className="text-lg font-bold text-[#c0caf5]">
+            {mode === "add" ? "作品を追加" : "作品を編集"}
+          </h2>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+            >
+              {mode === "add" ? "追加" : "保存"}
+            </button>
+          </div>
+        </div>
+
         <div className="space-y-4">
           <div>
             <label className="block text-xs text-[#787c99] mb-1">タイトル</label>
@@ -131,7 +147,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-[#787c99] mb-1">単位</label>
-              <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="話・冊など" className={`${inputClass} placeholder-[#4a5177]`} />
+              <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="話・巻など" className={`${inputClass} placeholder-[#4a5177]`} />
             </div>
             <div>
               <label className="block text-xs text-[#787c99] mb-1">セクション名</label>
@@ -144,13 +160,11 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
             </div>
           </div>
 
-          {/* ⑥ タグ入力<Plus size={20} />サジェスト */}
           <div>
             <label className="block text-xs text-[#787c99] mb-1">タグ（省略可）</label>
             <div className="relative">
               <div className="flex gap-2">
                 <input
-                  ref={tagInputRef}
                   value={tagInput}
                   onChange={(e) => { setTagInput(e.target.value); setShowSuggestions(true); }}
                   onFocus={() => setShowSuggestions(true)}
@@ -166,7 +180,6 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
                   className="shrink-0 px-3 py-2 rounded-xl bg-[#2a2d3e] border border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform"
                 >追加</button>
               </div>
-              {/* ⑥ サジェストドロップダウン */}
               {showSuggestions && tagSuggestions.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
                   {tagSuggestions.map((tag) => (
@@ -197,14 +210,6 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
           </div>
 
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
-        </div>
-        <div className="mt-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform">
-            キャンセル
-          </button>
-          <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform">
-            {mode === "add" ? "追加" : "保存"}
-          </button>
         </div>
       </div>
     </div>

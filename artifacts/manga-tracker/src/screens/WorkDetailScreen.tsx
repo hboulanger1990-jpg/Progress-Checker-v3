@@ -1,4 +1,4 @@
-import { Settings, Trash2, Search, ArrowLeft, X, Plus, GripVertical, Grid2x2Check, LockKeyhole, LockKeyholeOpen, SlidersHorizontal, Check } from "lucide-react";
+import { Settings, Trash2, Search, ArrowLeft, X, Plus, GripVertical, Grid2x2Check, LockKeyhole, LockKeyholeOpen, SlidersHorizontal, Check, CheckSquare, Square, ArrowDownToLine } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { Folder, Work, Section, SortOrder } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -53,10 +53,19 @@ export default function WorkDetailScreen({
   const [showSectionSortMenu, setShowSectionSortMenu] = useState(false);
   const [showItemSortMenu, setShowItemSortMenu] = useState<string | null>(null);
 
+  // セクション選択モード
+  const [sectionSelectMode, setSectionSelectMode] = useState(false);
+  const [selectedSectionIds, setSelectedSectionIds] = useState<Set<string>>(new Set());
+  const [sectionMoveTargetId, setSectionMoveTargetId] = useState<string | "top" | null>(null);
+
+  // テキスト項目選択モード（sectionId -> Set<idx>）
+  const [itemSelectMode, setItemSelectMode] = useState<string | null>(null); // sectionId or null
+  const [selectedItemIdxs, setSelectedItemIdxs] = useState<Set<number>>(new Set());
+  const [itemMoveTargetIdx, setItemMoveTargetIdx] = useState<number | "top" | null>(null);
+
+  // セクションドラッグ（通常モード）
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
   const [dragOverSectionIdx, setDragOverSectionIdx] = useState<number | null>(null);
-  const [draggingItem, setDraggingItem] = useState<{ sectionId: string; idx: number } | null>(null);
-  const [dragOverItemIdx, setDragOverItemIdx] = useState<number | null>(null);
 
   const touchStart = useRef({ x: 0, y: 0 });
   const justBecameVisible = useRef(false);
@@ -96,6 +105,30 @@ export default function WorkDetailScreen({
       if (touchEndHandler.current) window.removeEventListener("touchend", touchEndHandler.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (locked) {
+      setSectionSelectMode(false);
+      setSelectedSectionIds(new Set());
+      setSectionMoveTargetId(null);
+      setItemSelectMode(null);
+      setSelectedItemIdxs(new Set());
+      setItemMoveTargetIdx(null);
+    }
+  }, [locked]);
+
+  useEffect(() => {
+    if (!sectionSelectMode) {
+      setSectionMoveTargetId(null);
+    }
+  }, [sectionSelectMode]);
+
+  useEffect(() => {
+    if (!itemSelectMode) {
+      setItemMoveTargetIdx(null);
+      setSelectedItemIdxs(new Set());
+    }
+  }, [itemSelectMode]);
 
   function handleTouchStart(e: React.TouchEvent) { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
   function handleTouchEnd(e: React.TouchEvent) {
@@ -148,8 +181,88 @@ export default function WorkDetailScreen({
     setShowItemSortMenu(null);
   }
 
-  // ---- セクションドラッグ ----
+  // ---- セクション選択モード ----
+  function toggleSectionSelect(id: string) {
+    setSelectedSectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setSectionMoveTargetId(null);
+  }
+
+  function executeSectionMoveHere(targetId: string | "top") {
+    if (selectedSectionIds.size === 0) return;
+    const sections = applySectionSort(work.sections);
+    const selected = sections.filter((s) => selectedSectionIds.has(s.id));
+    const notSelected = sections.filter((s) => !selectedSectionIds.has(s.id));
+
+    let insertIdx: number;
+    if (targetId === "top") {
+      insertIdx = 0;
+    } else {
+      const targetIdx = notSelected.findIndex((s) => s.id === targetId);
+      insertIdx = targetIdx === -1 ? notSelected.length : targetIdx + 1;
+    }
+
+    const result = [
+      ...notSelected.slice(0, insertIdx),
+      ...selected,
+      ...notSelected.slice(insertIdx),
+    ];
+    onReorderSections(result);
+    setSectionMoveTargetId(null);
+  }
+
+  // ---- テキスト項目選択モード ----
+  function toggleItemSelect(idx: number) {
+    setSelectedItemIdxs((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+    setItemMoveTargetIdx(null);
+  }
+
+  function executeItemMoveHere(sectionId: string, displayItems: string[], targetIdx: number | "top") {
+    if (selectedItemIdxs.size === 0) return;
+    const section = work.sections.find((s) => s.id === sectionId);
+    if (!section) return;
+
+    const selected = displayItems.filter((_, i) => selectedItemIdxs.has(i));
+    const notSelected = displayItems.filter((_, i) => !selectedItemIdxs.has(i));
+
+    let insertIdx: number;
+    if (targetIdx === "top") {
+      insertIdx = 0;
+    } else {
+      // targetIdx is index in displayItems (not selected ones filtered)
+      const notSelectedTargetIdx = notSelected.findIndex((item) => item === displayItems[targetIdx as number]);
+      insertIdx = notSelectedTargetIdx === -1 ? notSelected.length : notSelectedTargetIdx + 1;
+    }
+
+    const newItems = [
+      ...notSelected.slice(0, insertIdx),
+      ...selected,
+      ...notSelected.slice(insertIdx),
+    ];
+
+    const newStatuses: Section["statuses"] = {};
+    newItems.forEach((itemLabel, newIdx) => {
+      const origIdx = section.items!.indexOf(itemLabel);
+      if (origIdx !== -1 && section.statuses[section.startNum + origIdx]) {
+        newStatuses[section.startNum + newIdx] = "read";
+      }
+    });
+    onReorderItems(sectionId, newItems, newStatuses);
+    setItemMoveTargetIdx(null);
+    setSelectedItemIdxs(new Set());
+    setItemSelectMode(null);
+  }
+
+  // ---- セクションドラッグ（ロック中でない通常モードのみ） ----
   function startSectionDrag(sectionId: string) {
+    if (sectionSelectMode) return;
     setDraggingSectionId(sectionId);
     const onMove = (e: TouchEvent) => {
       e.preventDefault();
@@ -195,58 +308,6 @@ export default function WorkDetailScreen({
     window.addEventListener("touchend", onEnd);
   }
 
-  // ---- アイテムドラッグ ----
-  function startItemDrag(sectionId: string, idx: number) {
-    setDraggingItem({ sectionId, idx });
-    const onMove = (e: TouchEvent) => {
-      e.preventDefault();
-      const y = e.touches[0].clientY;
-      const els = document.querySelectorAll(`[data-item-section="${sectionId}"]`);
-      let found: number | null = null;
-      for (let i = 0; i < els.length; i++) {
-        const rect = els[i].getBoundingClientRect();
-        if (y < rect.top + rect.height / 2) { found = i; break; }
-        found = i + 1;
-      }
-      setDragOverItemIdx(found);
-    };
-    const onEnd = () => {
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("touchend", onEnd);
-      touchMoveHandler.current = null;
-      touchEndHandler.current = null;
-      setDraggingItem((di) => {
-        setDragOverItemIdx((overIdx) => {
-          if (di && di.sectionId === sectionId && overIdx !== null) {
-            const section = work.sections.find((s) => s.id === sectionId);
-            if (section) {
-              const adjustedTo = overIdx > di.idx ? overIdx - 1 : overIdx;
-              if (adjustedTo !== di.idx) {
-                const items = [...(section.items ?? [])];
-                const [movedItem] = items.splice(di.idx, 1);
-                items.splice(adjustedTo, 0, movedItem);
-                const newStatuses: Section["statuses"] = {};
-                items.forEach((it, newIdx) => {
-                  const origIdx = section.items!.indexOf(it);
-                  if (section.statuses[section.startNum + origIdx]) newStatuses[section.startNum + newIdx] = "read";
-                });
-                onReorderItems(sectionId, items, newStatuses);
-              }
-            }
-          }
-          return null;
-        });
-        return null;
-      });
-    };
-    if (touchMoveHandler.current) window.removeEventListener("touchmove", touchMoveHandler.current);
-    if (touchEndHandler.current) window.removeEventListener("touchend", touchEndHandler.current);
-    touchMoveHandler.current = onMove;
-    touchEndHandler.current = onEnd;
-    window.addEventListener("touchmove", onMove, { passive: false });
-    window.addEventListener("touchend", onEnd);
-  }
-
   const filteredSections = useCallback(() => {
     const sections = applySectionSort(work.sections);
     if (!textSearch.trim()) return sections;
@@ -255,6 +316,8 @@ export default function WorkDetailScreen({
       return { ...s, _filteredItems: s.items.filter((item) => item.toLowerCase().includes(textSearch.toLowerCase())) };
     });
   }, [work.sections, textSearch, sectionSortOrder]);
+
+  const showSectionMoveButton = sectionSelectMode && selectedSectionIds.size > 0;
 
   return (
     <div
@@ -283,8 +346,36 @@ export default function WorkDetailScreen({
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
-              {/* セクション並び順ボタン */}
-              {work.sections.length > 1 && (
+              {/* セクション選択モードボタン（複数セクションある場合のみ） */}
+              {!locked && work.sections.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (sectionSelectMode) {
+                      setSectionSelectMode(false);
+                      setSelectedSectionIds(new Set());
+                      setSectionMoveTargetId(null);
+                    } else {
+                      setSectionSelectMode(true);
+                      setItemSelectMode(null);
+                    }
+                  }}
+                  className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
+                  style={sectionSelectMode
+                    ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                  }
+                  title={sectionSelectMode ? "完了" : "セクション並び替え"}
+                >
+                  {sectionSelectMode
+                    ? <><Check size={14} /><span className="text-xs font-bold">完了</span></>
+                    : <CheckSquare size={16} />
+                  }
+                </button>
+              )}
+
+              {/* セクション並び順ボタン（選択モード中は非表示） */}
+              {work.sections.length > 1 && !sectionSelectMode && (
                 <div className="relative">
                   <button
                     onClick={(e) => { e.stopPropagation(); if (!locked) setShowSectionSortMenu((v) => !v); }}
@@ -311,7 +402,7 @@ export default function WorkDetailScreen({
               )}
 
               {/* テキスト検索ボタン */}
-              {hasTextSections && (
+              {hasTextSections && !sectionSelectMode && (
                 <button onClick={() => setShowTextSearch((v) => !v)}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border active:scale-95 transition-transform"
                   style={{ color: showTextSearch ? accentHex : "#787c99", borderColor: showTextSearch ? accentHex : "#3b4261" }}
@@ -319,13 +410,20 @@ export default function WorkDetailScreen({
               )}
 
               {/* 設定ボタン */}
-              {!locked && (
+              {!locked && !sectionSelectMode && (
                 <button onClick={() => setShowWorkEdit(true)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] text-[#787c99] active:scale-95 transition-transform">
                   <Settings size={16} />
                 </button>
               )}
             </div>
           </div>
+          {sectionSelectMode && (
+            <p className="text-xs text-[#787c99] text-center pt-2">
+              {selectedSectionIds.size > 0
+                ? `${selectedSectionIds.size}件選択中 — 移動先の「ここに移動」をタップ`
+                : "タップして選択、もう一度タップで解除"}
+            </p>
+          )}
         </div>
       </header>
 
@@ -377,7 +475,17 @@ export default function WorkDetailScreen({
           </div>
         ) : (
           <div className="space-y-5">
-            {draggingSectionId && dragOverSectionIdx === 0 && <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />}
+            {/* セクション先頭への「ここに移動」 */}
+            {showSectionMoveButton && (
+              <SectionMoveHereButton
+                isTarget={sectionMoveTargetId === "top"}
+                onToggle={() => setSectionMoveTargetId((v) => v === "top" ? null : "top")}
+                onExecute={() => executeSectionMoveHere("top")}
+                accentHex={accentHex}
+              />
+            )}
+            {draggingSectionId && dragOverSectionIdx === 0 && !sectionSelectMode && <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />}
+
             {filteredSections().map((section, sectionIndex) => {
               const sectionWithFilter = section as Section & { _filteredItems?: string[] };
               const rawItems = sectionWithFilter._filteredItems ?? section.items ?? [];
@@ -385,14 +493,27 @@ export default function WorkDetailScreen({
               const { read: sRead, total: sTotal } = calcSectionProgress(section);
               const isDraggingThis = draggingSectionId === section.id;
               const itemSortOrder = section.sortOrder ?? "default";
+              const isSectionChecked = selectedSectionIds.has(section.id);
+
+              // このセクションがアイテム選択モードかどうか
+              const isThisSectionItemSelect = itemSelectMode === section.id;
+              const showItemMoveButton = isThisSectionItemSelect && selectedItemIdxs.size > 0;
 
               return (
                 <div key={section.id}>
-                  <div data-section-id={section.id} className={`transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""}`}>
+                  <div data-section-id={section.id} className={`transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""} ${isSectionChecked ? "ring-2 rounded-xl ring-[#7aa2f7]/40" : ""}`}>
                     <div className="flex items-center justify-between mb-2 px-1">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {/* セクションドラッグハンドル（常時表示） */}
-                        {!locked && work.sections.length > 1 && (
+                        {/* セクション選択チェック or ドラッグハンドル */}
+                        {!locked && sectionSelectMode ? (
+                          <button
+                            className="shrink-0 w-7 h-7 flex items-center justify-center"
+                            onClick={() => toggleSectionSelect(section.id)}
+                            style={{ color: isSectionChecked ? "#7aa2f7" : "#4a5177" }}
+                          >
+                            {isSectionChecked ? <CheckSquare size={18} /> : <Square size={18} />}
+                          </button>
+                        ) : !locked && work.sections.length > 1 ? (
                           <button
                             className="shrink-0 w-7 h-7 flex items-center justify-center text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none"
                             onTouchStart={(e) => { e.stopPropagation(); startSectionDrag(section.id); }}
@@ -435,7 +556,8 @@ export default function WorkDetailScreen({
                               window.addEventListener("mouseup", onUp);
                             }}
                           ><GripVertical size={20} /></button>
-                        )}
+                        ) : null}
+
                         <div className="min-w-0">
                           <span className="font-bold text-[#c0caf5] text-sm">{section.label}</span>
                           <span className="text-xs text-[#787c99] ml-2">
@@ -446,112 +568,144 @@ export default function WorkDetailScreen({
                           </span>
                         </div>
                       </div>
-                      <div className="flex gap-1 items-center">
-                        {section.mode === "text" && (
-                          <div className="relative">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); if (!locked) setShowItemSortMenu((v) => v === section.id ? null : section.id); }}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
-                              style={showItemSortMenu === section.id
-                                ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
-                                : itemSortOrder !== "default"
-                                  ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
-                                  : { backgroundColor: "transparent", borderColor: "transparent", color: locked ? "#3b4261" : "#787c99" }
-                              }
-                              title="項目の並び順"
-                            ><SlidersHorizontal size={14} /></button>
-                            {showItemSortMenu === section.id && (
-                              <div className="absolute right-0 top-8 z-30 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-2xl overflow-hidden min-w-[140px]" onClick={(e) => e.stopPropagation()}>
-                                {ITEM_SORT_OPTIONS.map((opt) => (
-                                  <button key={opt.value} onClick={() => handleItemSortChange(section.id, opt.value)}
-                                    className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
-                                    style={{ color: itemSortOrder === opt.value ? accentHex : "#a9b1d6", backgroundColor: itemSortOrder === opt.value ? `${accentHex}11` : "transparent" }}
-                                  >{opt.label}{itemSortOrder === opt.value && <Check size={14} />}</button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {!locked && (
-                          <>
-                            <button onClick={() => setSectionModal({ mode: "edit", section })} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#787c99] active:scale-95 transition-transform"><Settings size={16} /></button>
-                            <button onClick={() => handleDeleteSection(section)} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#f7768e] active:scale-95 transition-transform"><Trash2 size={16} /></button>
-                          </>
-                        )}
-                      </div>
+
+                      {/* セクション選択モード中はアイコン非表示 */}
+                      {!sectionSelectMode && (
+                        <div className="flex gap-1 items-center">
+                          {/* テキストモード: 項目並び順 or 選択モード */}
+                          {section.mode === "text" && !locked && (
+                            <>
+                              {/* 項目選択モードボタン */}
+                              {section.items && section.items.length > 1 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isThisSectionItemSelect) {
+                                      setItemSelectMode(null);
+                                    } else {
+                                      setItemSelectMode(section.id);
+                                      setSelectedItemIdxs(new Set());
+                                      setItemMoveTargetIdx(null);
+                                    }
+                                  }}
+                                  className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
+                                  style={isThisSectionItemSelect
+                                    ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                                    : { backgroundColor: "transparent", borderColor: "transparent", color: "#787c99" }
+                                  }
+                                  title={isThisSectionItemSelect ? "完了" : "項目並び替え"}
+                                >
+                                  {isThisSectionItemSelect
+                                    ? <><Check size={12} /><span className="text-xs font-bold">完了</span></>
+                                    : <CheckSquare size={14} />
+                                  }
+                                </button>
+                              )}
+                              {/* 項目並び順ボタン（選択モード中は非表示） */}
+                              {!isThisSectionItemSelect && (
+                                <div className="relative">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setShowItemSortMenu((v) => v === section.id ? null : section.id); }}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
+                                    style={showItemSortMenu === section.id
+                                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                                      : itemSortOrder !== "default"
+                                        ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
+                                        : { backgroundColor: "transparent", borderColor: "transparent", color: "#787c99" }
+                                    }
+                                    title="項目の並び順"
+                                  ><SlidersHorizontal size={14} /></button>
+                                  {showItemSortMenu === section.id && (
+                                    <div className="absolute right-0 top-8 z-30 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-2xl overflow-hidden min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                                      {ITEM_SORT_OPTIONS.map((opt) => (
+                                        <button key={opt.value} onClick={() => handleItemSortChange(section.id, opt.value)}
+                                          className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
+                                          style={{ color: itemSortOrder === opt.value ? accentHex : "#a9b1d6", backgroundColor: itemSortOrder === opt.value ? `${accentHex}11` : "transparent" }}
+                                        >{opt.label}{itemSortOrder === opt.value && <Check size={14} />}</button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {!locked && (
+                            <>
+                              <button onClick={() => setSectionModal({ mode: "edit", section })} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#787c99] active:scale-95 transition-transform"><Settings size={16} /></button>
+                              <button onClick={() => handleDeleteSection(section)} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#f7768e] active:scale-95 transition-transform"><Trash2 size={16} /></button>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {section.mode === "text" && section.items ? (
+                    {/* セクション選択モード中はコンテンツをタップで選択 */}
+                    {sectionSelectMode ? (
+                      <button
+                        className="w-full text-left px-3 py-2 rounded-xl border transition-all active:scale-[0.98]"
+                        style={{ borderColor: isSectionChecked ? "#7aa2f7" : "#3b4261", backgroundColor: isSectionChecked ? "#7aa2f711" : "#24283b" }}
+                        onClick={() => toggleSectionSelect(section.id)}
+                      >
+                        <span className="text-xs text-[#787c99]">{section.mode === "text" ? `${sTotal}項目` : `${section.startNum}〜${section.endNum}${work.unit}`}</span>
+                      </button>
+                    ) : section.mode === "text" && section.items ? (
                       <div className="space-y-1.5">
-                        {draggingItem?.sectionId === section.id && dragOverItemIdx === 0 && <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />}
+                        {/* 項目先頭への「ここに移動」 */}
+                        {showItemMoveButton && (
+                          <ItemMoveHereButton
+                            isTarget={itemMoveTargetIdx === "top"}
+                            onToggle={() => setItemMoveTargetIdx((v) => v === "top" ? null : "top")}
+                            onExecute={() => executeItemMoveHere(section.id, displayItems, "top")}
+                            accentHex={accentHex}
+                          />
+                        )}
                         {displayItems.map((itemLabel, idx) => {
                           const realIdx = section.items!.indexOf(itemLabel);
                           const num = section.startNum + realIdx;
                           const isRead = !!section.statuses[num];
-                          const isDraggingThisItem = draggingItem?.sectionId === section.id && draggingItem?.idx === idx;
+                          const isItemChecked = selectedItemIdxs.has(idx);
                           return (
                             <div key={`${section.id}-${idx}`}>
                               <button
                                 id={`item-${section.id}-${num}`}
                                 data-item-section={section.id}
-                                onClick={() => handleToggle(section.id, num)}
+                                onClick={() => {
+                                  if (isThisSectionItemSelect) {
+                                    toggleItemSelect(idx);
+                                    return;
+                                  }
+                                  handleToggle(section.id, num);
+                                }}
                                 onTouchStart={(e) => { e.stopPropagation(); }}
-                                className={`w-full border rounded-xl px-4 py-3 text-left text-sm font-medium select-none touch-manipulation transition-all duration-100 ${isDraggingThisItem ? "opacity-40" : ""} ${locked ? "" : "active:scale-[0.98]"}`}
-                                style={isRead ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex } : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }}
+                                className={`w-full border rounded-xl px-4 py-3 text-left text-sm font-medium select-none touch-manipulation transition-all duration-100 ${locked ? "" : "active:scale-[0.98]"}`}
+                                style={
+                                  isThisSectionItemSelect
+                                    ? isItemChecked
+                                      ? { backgroundColor: "#7aa2f722", color: "#c0caf5", borderColor: "#7aa2f7" }
+                                      : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
+                                    : isRead
+                                      ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
+                                      : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
+                                }
                               >
                                 <div className="flex items-center gap-2">
-                                  {!locked && (
-                                    <span className="text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
-                                      onTouchStart={(e) => { e.stopPropagation(); startItemDrag(section.id, idx); }}
-                                      onMouseDown={(e) => {
-                                        e.stopPropagation();
-                                        setDraggingItem({ sectionId: section.id, idx });
-                                        const onMove = (me: MouseEvent) => {
-                                          const els = document.querySelectorAll(`[data-item-section="${section.id}"]`);
-                                          let found: number | null = null;
-                                          for (let i = 0; i < els.length; i++) {
-                                            const rect = els[i].getBoundingClientRect();
-                                            if (me.clientY < rect.top + rect.height / 2) { found = i; break; }
-                                            found = i + 1;
-                                          }
-                                          setDragOverItemIdx(found);
-                                        };
-                                        const onUp = () => {
-                                          window.removeEventListener("mousemove", onMove);
-                                          window.removeEventListener("mouseup", onUp);
-                                          setDraggingItem((di) => {
-                                            setDragOverItemIdx((doi) => {
-                                              if (di && doi !== null) {
-                                                const section2 = work.sections.find((s) => s.id === section.id);
-                                                if (section2) {
-                                                  const adjustedTo = doi > di.idx ? doi - 1 : doi;
-                                                  if (adjustedTo !== di.idx) {
-                                                    const items = [...(section2.items ?? [])];
-                                                    const [movedItem] = items.splice(di.idx, 1);
-                                                    items.splice(adjustedTo, 0, movedItem);
-                                                    const newStatuses: Section["statuses"] = {};
-                                                    items.forEach((it, newIdx) => {
-                                                      const origIdx = section2.items!.indexOf(it);
-                                                      if (section2.statuses[section2.startNum + origIdx]) newStatuses[section2.startNum + newIdx] = "read";
-                                                    });
-                                                    onReorderItems(section.id, items, newStatuses);
-                                                  }
-                                                }
-                                              }
-                                              return null;
-                                            });
-                                            return null;
-                                          });
-                                        };
-                                        window.addEventListener("mousemove", onMove);
-                                        window.addEventListener("mouseup", onUp);
-                                      }}
-                                    ><GripVertical size={20} /></span>
+                                  {isThisSectionItemSelect && (
+                                    <span className="shrink-0" style={{ color: isItemChecked ? "#7aa2f7" : "#4a5177" }}>
+                                      {isItemChecked ? <CheckSquare size={16} /> : <Square size={16} />}
+                                    </span>
                                   )}
                                   <span className="whitespace-pre-wrap break-words flex-1">{itemLabel}</span>
                                 </div>
                               </button>
-                              {draggingItem?.sectionId === section.id && dragOverItemIdx === idx + 1 && <div className="h-0.5 rounded-full mx-1 mt-1.5" style={{ backgroundColor: accentHex }} />}
+                              {/* 各項目の後の「ここに移動」 */}
+                              {showItemMoveButton && !isItemChecked && (
+                                <ItemMoveHereButton
+                                  isTarget={itemMoveTargetIdx === idx}
+                                  onToggle={() => setItemMoveTargetIdx((v) => v === idx ? null : idx)}
+                                  onExecute={() => executeItemMoveHere(section.id, displayItems, idx)}
+                                  accentHex={accentHex}
+                                />
+                              )}
                             </div>
                           );
                         })}
@@ -571,11 +725,22 @@ export default function WorkDetailScreen({
                       </div>
                     )}
                   </div>
-                  {draggingSectionId && dragOverSectionIdx === sectionIndex + 1 && <div className="h-0.5 rounded-full mx-1 mt-5" style={{ backgroundColor: accentHex }} />}
+
+                  {/* セクション間の「ここに移動」 */}
+                  {showSectionMoveButton && !isSectionChecked && (
+                    <SectionMoveHereButton
+                      isTarget={sectionMoveTargetId === section.id}
+                      onToggle={() => setSectionMoveTargetId((v) => v === section.id ? null : section.id)}
+                      onExecute={() => executeSectionMoveHere(section.id)}
+                      accentHex={accentHex}
+                    />
+                  )}
+
+                  {!sectionSelectMode && draggingSectionId && dragOverSectionIdx === sectionIndex + 1 && <div className="h-0.5 rounded-full mx-1 mt-5" style={{ backgroundColor: accentHex }} />}
                 </div>
               );
             })}
-            {!locked && (
+            {!locked && !sectionSelectMode && (
               <button onClick={() => setSectionModal({ mode: "add" })} className="w-full py-3 rounded-xl border border-dashed border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5">
                 <Plus size={20} /><span>{secLabel}を追加</span>
               </button>
@@ -597,6 +762,42 @@ export default function WorkDetailScreen({
           onSave={(label, startNum, endNum, sectionMode, items) => { onEditSection(sectionModal.section.id, { label, startNum, endNum, mode: sectionMode, items }); setSectionModal(null); }}
         />
       )}
+    </div>
+  );
+}
+
+function SectionMoveHereButton({ isTarget, onToggle, onExecute, accentHex }: { isTarget: boolean; onToggle: () => void; onExecute: () => void; accentHex: string }) {
+  return (
+    <div className="flex items-center gap-2 py-1 px-1">
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      {isTarget ? (
+        <button onClick={(e) => { e.stopPropagation(); onExecute(); }} className="flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full active:scale-95 transition-all" style={{ backgroundColor: accentHex, color: "#1a1b26" }}>
+          <ArrowDownToLine size={12} /> ここに移動
+        </button>
+      ) : (
+        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="flex items-center gap-1 text-xs px-3 py-1 rounded-full border active:scale-95 transition-all" style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}>
+          <ArrowDownToLine size={12} /> ここに移動
+        </button>
+      )}
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+    </div>
+  );
+}
+
+function ItemMoveHereButton({ isTarget, onToggle, onExecute, accentHex }: { isTarget: boolean; onToggle: () => void; onExecute: () => void; accentHex: string }) {
+  return (
+    <div className="flex items-center gap-2 py-0.5 px-1 mt-1">
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      {isTarget ? (
+        <button onClick={(e) => { e.stopPropagation(); onExecute(); }} className="flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full active:scale-95 transition-all" style={{ backgroundColor: accentHex, color: "#1a1b26" }}>
+          <ArrowDownToLine size={11} /> ここに移動
+        </button>
+      ) : (
+        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full border active:scale-95 transition-all" style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}>
+          <ArrowDownToLine size={11} /> ここに移動
+        </button>
+      )}
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
     </div>
   );
 }

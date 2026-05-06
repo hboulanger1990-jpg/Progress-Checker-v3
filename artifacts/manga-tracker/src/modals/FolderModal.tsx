@@ -30,7 +30,6 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 80); }, []);
 
-  // ⑥ visibilitychangeでモーダルを閉じない
   useEffect(() => {
     const handler = (e: Event) => { e.stopImmediatePropagation(); };
     document.addEventListener("visibilitychange", handler, true);
@@ -52,9 +51,27 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
         className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
         style={{ maxHeight: "90dvh" }}
       >
-        <h2 className="text-lg font-bold text-[#c0caf5] mb-5">
-          {mode === "add" ? "フォルダを追加" : "フォルダを編集"}
-        </h2>
+        {/* タイトル行 + ボタン */}
+        <div className="flex items-center justify-between gap-3 mb-5">
+          <h2 className="text-lg font-bold text-[#c0caf5]">
+            {mode === "add" ? "フォルダを追加" : "フォルダを編集"}
+          </h2>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+            >
+              {mode === "add" ? "追加" : "保存"}
+            </button>
+          </div>
+        </div>
+
         <div className="space-y-4">
           <div>
             <label className="block text-xs text-[#787c99] mb-1">フォルダ名</label>
@@ -67,7 +84,6 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
             />
           </div>
 
-          {/* ③ 名称変更・説明削除 */}
           <div>
             <label className="block text-xs text-[#787c99] mb-2">管理タイプ</label>
             <div className="grid grid-cols-2 gap-2">
@@ -96,27 +112,26 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
           <div>
             <label className="block text-xs text-[#787c99] mb-2">アクセントカラー</label>
             <div className="flex gap-2 flex-wrap">
-  {COLOR_KEYS.map((c) => (
-    <button
-      key={c}
-      onClick={() => setColor(c)}
-      className="w-10 h-10 rounded-full transition-transform active:scale-90"
-      style={{
-        backgroundColor: ACCENT_COLORS[c].hex,
-        outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
-        outlineOffset: 2,
-        opacity: color === c ? 1 : 0.5,
-      }}
-      aria-label={ACCENT_COLORS[c].label}
-    />
-  ))}
-</div>
+              {COLOR_KEYS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className="w-10 h-10 rounded-full transition-transform active:scale-90"
+                  style={{
+                    backgroundColor: ACCENT_COLORS[c].hex,
+                    outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
+                    outlineOffset: 2,
+                    opacity: color === c ? 1 : 0.5,
+                  }}
+                  aria-label={ACCENT_COLORS[c].label}
+                />
+              ))}
+            </div>
           </div>
 
-          {/* ④ 進捗タイプ：既存の詳細設定 */}
           {folderType === "progress" && (
             <div className="border-t border-[#3b4261] pt-4">
-              <p className="text-xs text-[#787c99] mb-3">新規項目のデフォルト設定（省略可）</p>
+              <p className="text-xs text-[#787c99] mb-3">新規作品のデフォルト設定（省略可）</p>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
@@ -134,7 +149,6 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
             </div>
           )}
 
-          {/* ④ 完了タイプ：ラベル入力欄 */}
           {folderType === "read" && (
             <div className="border-t border-[#3b4261] pt-4">
               <p className="text-xs text-[#787c99] mb-3">ステータスラベル（省略可）</p>
@@ -162,14 +176,6 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
           )}
 
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
-        </div>
-        <div className="mt-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform">
-            キャンセル
-          </button>
-          <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform">
-            {mode === "add" ? "追加" : "保存"}
-          </button>
         </div>
       </div>
     </div>

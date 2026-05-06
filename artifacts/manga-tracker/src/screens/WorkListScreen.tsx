@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Search, ArrowLeft, X, Plus, Check, Grid2x2Check, ListChecks, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Tag, SlidersHorizontal, ArrowUp, ArrowDown } from "lucide-react";
+import { Pencil, Trash2, Search, ArrowLeft, X, Plus, Check, Grid2x2Check, ListChecks, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Tag, SlidersHorizontal, ArrowDownToLine } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { Folder, Work, SortOrder } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -53,6 +53,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   // 複数選択モード
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // 「ここに移動」: 選択済みアイテムを挿入するターゲットインデックス（folder.works基準）
+  const [moveTargetId, setMoveTargetId] = useState<string | "top" | null>(null);
   const [showTagAction, setShowTagAction] = useState(false);
   const [tagActionInput, setTagActionInput] = useState("");
 
@@ -83,8 +85,17 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
       setSelectMode(false);
       setSelectedIds(new Set());
       setSelectedId(null);
+      setMoveTargetId(null);
     }
   }, [locked]);
+
+  // selectModeを抜けるときにmoveTargetIdもリセット
+  useEffect(() => {
+    if (!selectMode) {
+      setMoveTargetId(null);
+      setShowTagAction(false);
+    }
+  }, [selectMode]);
 
   const allTags = Array.from(new Set(folder.works.flatMap((w) => w.tags ?? [])));
 
@@ -106,7 +117,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     }
   }
 
-  // 並び順がdefaultのとき、進捗タイプは登録順（folder.worksの順）をそのまま使う
   const sortedFiltered = sortOrder !== "default"
     ? applyWorkSortOrder(filtered)
     : isReadMode
@@ -121,7 +131,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
         });
 
   function handleDelete(w: Work) {
-    if (!window.confirm(`「${w.title}」を削除しますか？この操作は元に戻せません。`)) return;
+    if (!window.confirm(`「${w.title}」を削除しますか？\nこの操作は元に戻せません。`)) return;
     onDelete(w.id);
     setSelectedId(null);
   }
@@ -153,33 +163,40 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
 
   // ---- 複数選択 ----
   function toggleSelectId(id: string) {
-    setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    // 選択変更時はmoveTargetをリセット
+    setMoveTargetId(null);
   }
 
-  // 一括上下移動
-  // 移動後はsortOrderをdefaultに切り替えてupdatedAtソートを無効化
-  function moveSelectedItems(direction: "up" | "down") {
+  // 「ここに移動」実行: selectedIdsのアイテムをtargetIdの後ろに挿入
+  // targetId === "top" なら先頭に挿入
+  function executeMoveHere(targetId: string | "top") {
+    if (selectedIds.size === 0) return;
     const list = [...folder.works];
-    const indices = Array.from(selectedIds)
-      .map((id) => list.findIndex((w) => w.id === id))
-      .filter((i) => i !== -1)
-      .sort((a, b) => a - b);
-    if (indices.length === 0) return;
+    const selected = list.filter((w) => selectedIds.has(w.id));
+    const notSelected = list.filter((w) => !selectedIds.has(w.id));
 
-    if (direction === "up") {
-      if (indices[0] === 0) return;
-      for (const idx of indices) {
-        [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
-      }
+    let insertIdx: number;
+    if (targetId === "top") {
+      insertIdx = 0;
     } else {
-      if (indices[indices.length - 1] === list.length - 1) return;
-      for (let i = indices.length - 1; i >= 0; i--) {
-        const idx = indices[i];
-        [list[idx], list[idx + 1]] = [list[idx + 1], list[idx]];
-      }
+      const targetIdx = notSelected.findIndex((w) => w.id === targetId);
+      insertIdx = targetIdx === -1 ? notSelected.length : targetIdx + 1;
     }
-    onReorder(list);
-    // 進捗タイプはupdatedAtソートと干渉するのでdefaultに切り替え
+
+    const result = [
+      ...notSelected.slice(0, insertIdx),
+      ...selected,
+      ...notSelected.slice(insertIdx),
+    ];
+
+    onReorder(result);
+    setMoveTargetId(null);
+    // 進捗タイプはupdatedAtソートと干渉するのでdefaultに戻す
     if (!isReadMode && sortOrder !== "default") {
       setSortOrder("default");
       onSetSortOrder("default");
@@ -217,6 +234,9 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     onSetSortOrder(order);
   }
 
+  // 「ここに移動」ボタンの表示条件: selectMode && selectedIds.size > 0 && アイテムが選択されていない場所
+  const showMoveButton = selectMode && selectedIds.size > 0;
+
   return (
     <div
       className="min-h-screen bg-[#1a1b26] flex flex-col relative"
@@ -237,7 +257,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
           <div className="relative border-2 border-dashed rounded-3xl px-10 py-8 text-center" style={{ borderColor: folderHex }}>
             <div className="flex justify-center"><Grid2x2Check size={40} /></div>
             <p className="font-bold text-lg" style={{ color: folderHex }}>ここにドロップ</p>
-            <p className="text-sm text-[#787c99] mt-1">1行につき1項目として追加します</p>
+            <p className="text-sm text-[#787c99] mt-1">1行につき1作品として追加します</p>
           </div>
         </div>
       )}
@@ -261,7 +281,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
-              {/* 並び順ボタン */}
+              {/* 並び順ボタン（選択モード中は非表示） */}
               {!selectMode && (
                 <div className="relative">
                   <button
@@ -288,20 +308,33 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 </div>
               )}
 
-              {/* 複数選択ボタン（ON/OFFトグル） */}
+              {/* 選択モードボタン（完了ボタン兼用） */}
               <button
                 onClick={() => {
                   if (locked) return;
-                  setSelectMode((v) => { if (v) setSelectedIds(new Set()); return !v; });
-                  setSelectedId(null);
+                  if (selectMode) {
+                    // 完了: 並び順を確定してモード終了
+                    setSelectMode(false);
+                    setSelectedIds(new Set());
+                    setMoveTargetId(null);
+                  } else {
+                    setSelectMode(true);
+                    setSelectedId(null);
+                  }
                 }}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
+                className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
                 style={selectMode
-                  ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
-                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
+                  ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26", minWidth: "2rem" }
+                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99", minWidth: "2rem" }
                 }
-                title="複数選択"
-              ><CheckSquare size={16} /></button>
+                title={selectMode ? "完了" : "選択モード"}
+              >
+                {selectMode ? (
+                  <><Check size={14} /><span className="text-xs font-bold">完了</span></>
+                ) : (
+                  <CheckSquare size={16} />
+                )}
+              </button>
             </div>
           </div>
 
@@ -309,7 +342,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             <>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="項目を検索..."
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="作品を検索..."
                   className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
                 />
                 {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>}
@@ -330,7 +363,11 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             </>
           )}
           {selectMode && (
-            <p className="text-xs text-[#787c99] text-center py-1">{selectedIds.size > 0 ? `${selectedIds.size}件選択中` : "タップして選択　もう一度押すと終了"}</p>
+            <p className="text-xs text-[#787c99] text-center py-1">
+              {selectedIds.size > 0
+                ? `${selectedIds.size}件選択中 — 移動先の「ここに移動」をタップ`
+                : "タップして選択、もう一度タップで解除"}
+            </p>
           )}
         </div>
       </header>
@@ -339,11 +376,20 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
         {sortedFiltered.length === 0 ? (
           <div className="mt-20 text-center space-y-2">
             <div className="flex justify-center"><ListChecks size={40} /></div>
-            <p className="text-[#787c99] text-sm">{search || selectedTag ? "条件に一致する項目はありません" : "項目がありません"}</p>
+            <p className="text-[#787c99] text-sm">{search || selectedTag ? "条件に一致する作品はありません" : "作品がありません"}</p>
             {!search && !selectedTag && <p className="text-[#4a5177] text-xs">下のボタンから追加しましょう</p>}
           </div>
         ) : isReadMode ? (
           <div className="space-y-2">
+            {/* 先頭への「ここに移動」 */}
+            {showMoveButton && (
+              <MoveHereButton
+                isTarget={moveTargetId === "top"}
+                onToggle={() => setMoveTargetId((v) => v === "top" ? null : "top")}
+                onExecute={() => executeMoveHere("top")}
+                accentHex={folderHex}
+              />
+            )}
             {sortedFiltered.map((work) => {
               const hex = ACCENT_COLORS[work.accentColor].hex;
               const done = !!work.completed;
@@ -395,12 +441,30 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                       <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
                     </div>
                   )}
+                  {/* 各アイテムの後の「ここに移動」 */}
+                  {showMoveButton && !isChecked && (
+                    <MoveHereButton
+                      isTarget={moveTargetId === work.id}
+                      onToggle={() => setMoveTargetId((v) => v === work.id ? null : work.id)}
+                      onExecute={() => executeMoveHere(work.id)}
+                      accentHex={folderHex}
+                    />
+                  )}
                 </div>
               );
             })}
           </div>
         ) : (
           <div className="space-y-2">
+            {/* 先頭への「ここに移動」 */}
+            {showMoveButton && (
+              <MoveHereButton
+                isTarget={moveTargetId === "top"}
+                onToggle={() => setMoveTargetId((v) => v === "top" ? null : "top")}
+                onExecute={() => executeMoveHere("top")}
+                accentHex={folderHex}
+              />
+            )}
             {sortedFiltered.map((work) => {
               const { read, total, percent } = calcWorkProgress(work.sections);
               const hex = ACCENT_COLORS[work.accentColor].hex;
@@ -454,6 +518,15 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                       <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
                     </div>
                   )}
+                  {/* 各アイテムの後の「ここに移動」 */}
+                  {showMoveButton && !isChecked && (
+                    <MoveHereButton
+                      isTarget={moveTargetId === work.id}
+                      onToggle={() => setMoveTargetId((v) => v === work.id ? null : work.id)}
+                      onExecute={() => executeMoveHere(work.id)}
+                      accentHex={folderHex}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -461,7 +534,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
         )}
       </main>
 
-      {/* 複数選択アクションバー */}
+      {/* 選択モードアクションバー（タグ操作のみ） */}
       {selectMode && selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/95 to-transparent">
           <div className="max-w-lg mx-auto space-y-2">
@@ -478,7 +551,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 </div>
                 {commonTags.length > 0 && (
                   <div>
-                    <p className="text-xs text-[#787c99] mb-1.5">選択中の全項目に付いているタグ（タップで削除）</p>
+                    <p className="text-xs text-[#787c99] mb-1.5">選択中の全作品についているタグ（タップで削除）</p>
                     <div className="flex flex-wrap gap-1.5">
                       {commonTags.map((tag) => (
                         <button key={tag} onClick={() => bulkRemoveTag(tag)} className="text-xs px-2.5 py-1 rounded-full border border-[#f7768e] text-[#f7768e] bg-[#f7768e11] active:scale-95 transition-transform flex items-center gap-1">#{tag} <X size={10} /></button>
@@ -490,8 +563,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
               </div>
             ) : (
               <div className="flex gap-2">
-                <button onClick={() => moveSelectedItems("up")} className="w-12 py-3 rounded-2xl border border-[#3b4261] text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center" title="上へ移動"><ArrowUp size={18} /></button>
-                <button onClick={() => moveSelectedItems("down")} className="w-12 py-3 rounded-2xl border border-[#3b4261] text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center" title="下へ移動"><ArrowDown size={18} /></button>
                 <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center gap-2"><Tag size={16} /> タグ操作</button>
               </div>
             )}
@@ -504,7 +575,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
           <div className="max-w-lg mx-auto">
             <button onClick={() => setShowAdd(true)} className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 text-[#1a1b26]" style={{ backgroundColor: folderHex, boxShadow: `0 4px 24px ${folderHex}33` }}>
-              <Plus size={20} /><span>新しい項目を追加</span>
+              <Plus size={20} /><span>新しい作品を追加</span>
             </button>
           </div>
         </div>
@@ -518,6 +589,43 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
         <WorkModal mode="edit" initial={editTarget} folderAccentColor={folder.accentColor} existingTags={allTags}
           onClose={() => setEditTarget(null)} onSave={(data) => { onEdit(editTarget.id, data); setEditTarget(null); }} />
       )}
+    </div>
+  );
+}
+
+// 「ここに移動」ボタンコンポーネント
+function MoveHereButton({
+  isTarget,
+  onToggle,
+  onExecute,
+  accentHex,
+}: {
+  isTarget: boolean;
+  onToggle: () => void;
+  onExecute: () => void;
+  accentHex: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 py-0.5 px-1">
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      {isTarget ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); onExecute(); }}
+          className="flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full active:scale-95 transition-all"
+          style={{ backgroundColor: accentHex, color: "#1a1b26" }}
+        >
+          <ArrowDownToLine size={12} /> ここに移動
+        </button>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          className="flex items-center gap-1 text-xs px-3 py-1 rounded-full border active:scale-95 transition-all"
+          style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}
+        >
+          <ArrowDownToLine size={12} /> ここに移動
+        </button>
+      )}
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
     </div>
   );
 }

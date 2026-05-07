@@ -318,18 +318,18 @@ function MoveHereButton({
       {isTarget ? (
         <button
           onClick={(e) => { e.stopPropagation(); onExecute(); }}
-          className="flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full active:scale-95 transition-all"
+          className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all"
           style={{ backgroundColor: accentHex, color: "#1a1b26" }}
         >
-          <ArrowDownToLine size={12} /> ここに移動
+          <ArrowDownToLine size={14} />
         </button>
       ) : (
         <button
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="flex items-center gap-1 text-xs px-3 py-1 rounded-full border active:scale-95 transition-all"
+          className="w-7 h-7 flex items-center justify-center rounded-full border active:scale-95 transition-all"
           style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}
         >
-          <ArrowDownToLine size={12} /> ここに移動
+          <ArrowDownToLine size={14} />
         </button>
       )}
       <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />

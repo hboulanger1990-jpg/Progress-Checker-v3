@@ -119,16 +119,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
 
   const sortedFiltered = sortOrder !== "default"
     ? applyWorkSortOrder(filtered)
-    : isReadMode
-      ? filtered
-      : [...filtered].sort((a, b) => {
-          const pa = calcWorkProgress(a.sections).percent;
-          const pb = calcWorkProgress(b.sections).percent;
-          const rankA = pa === 100 ? 2 : pa === 0 ? 1 : 0;
-          const rankB = pb === 100 ? 2 : pb === 0 ? 1 : 0;
-          if (rankA !== rankB) return rankA - rankB;
-          return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-        });
+    : filtered;
 
   function handleDelete(w: Work) {
     if (!window.confirm(`「${w.title}」を削除しますか？\nこの操作は元に戻せません。`)) return;
@@ -308,33 +299,38 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 </div>
               )}
 
-              {/* 選択モードボタン（完了ボタン兼用） */}
-              <button
-                onClick={() => {
-                  if (locked) return;
-                  if (selectMode) {
-                    // 完了: 並び順を確定してモード終了
-                    setSelectMode(false);
-                    setSelectedIds(new Set());
-                    setMoveTargetId(null);
-                  } else {
-                    setSelectMode(true);
-                    setSelectedId(null);
-                  }
-                }}
-                className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
-                style={selectMode
-                  ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26", minWidth: "2rem" }
-                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99", minWidth: "2rem" }
-                }
-                title={selectMode ? "完了" : "選択モード"}
-              >
-                {selectMode ? (
-                  <><Check size={14} /><span className="text-xs font-bold">完了</span></>
-                ) : (
-                  <CheckSquare size={16} />
-                )}
-              </button>
+              {/* 選択モードボタン。逆順中は無効 */}
+              {(() => {
+                const isReverse = sortOrder === "reverse";
+                const disabled = !selectMode && (locked || isReverse);
+                return (
+                  <button
+                    onClick={() => {
+                      if (disabled) return;
+                      if (selectMode) {
+                        setSelectMode(false);
+                        setSelectedIds(new Set());
+                        setMoveTargetId(null);
+                      } else {
+                        setSelectMode(true);
+                        setSelectedId(null);
+                      }
+                    }}
+                    className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
+                    style={selectMode
+                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26", minWidth: "2rem" }
+                      : { backgroundColor: "#24283b", borderColor: "#3b4261", color: disabled ? "#3b4261" : "#787c99", minWidth: "2rem" }
+                    }
+                    title={selectMode ? "完了" : isReverse ? "逆順中は並び替え不可" : "選択モード"}
+                  >
+                    {selectMode ? (
+                      <><Check size={14} /><span className="text-xs font-bold">完了</span></>
+                    ) : (
+                      <CheckSquare size={16} />
+                    )}
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -593,7 +589,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   );
 }
 
-// 「ここに移動」ボタンコンポーネント
+// 移動先マーカーコンポーネント
 function MoveHereButton({
   isTarget,
   onToggle,
@@ -611,18 +607,18 @@ function MoveHereButton({
       {isTarget ? (
         <button
           onClick={(e) => { e.stopPropagation(); onExecute(); }}
-          className="flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full active:scale-95 transition-all"
+          className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all"
           style={{ backgroundColor: accentHex, color: "#1a1b26" }}
         >
-          <ArrowDownToLine size={12} /> ここに移動
+          <ArrowDownToLine size={14} />
         </button>
       ) : (
         <button
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="flex items-center gap-1 text-xs px-3 py-1 rounded-full border active:scale-95 transition-all"
+          className="w-7 h-7 flex items-center justify-center rounded-full border active:scale-95 transition-all"
           style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}
         >
-          <ArrowDownToLine size={12} /> ここに移動
+          <ArrowDownToLine size={14} />
         </button>
       )}
       <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />

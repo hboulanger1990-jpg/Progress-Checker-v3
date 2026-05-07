@@ -93,7 +93,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
               onClick={onClose}
               className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
             >
-              キャンセル
+              戻る
             </button>
             <button
               onClick={handleSave}

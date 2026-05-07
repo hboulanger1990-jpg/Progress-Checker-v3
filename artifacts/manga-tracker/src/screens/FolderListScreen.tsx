@@ -149,7 +149,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowUserMenu((v) => !v); }}
                   className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform"
-                  style={{ color: user ? "#9ece6a" : "#787c99" }}
+                  style={{ color: user ? "#80c9ca" : "#787c99" }}
                   title={user ? "メニュー" : "メニュー"}
                 >
                   {user ? <Snail size={20} /> : <UserIcon size={20} />}
@@ -171,7 +171,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
                         onClick={() => { onSignIn(); setShowUserMenu(false); }}
                         className="w-full px-4 py-3 text-left text-sm text-[#a9b1d6] hover:bg-[#24283b] transition-colors flex items-center gap-2"
                       >
-                        <UserIcon size={16} /> Googleでログイン
+                        <UserIcon size={16} /> ログイン
                       </button>
                     )}
                     <div className="border-t border-[#3b4261]" />

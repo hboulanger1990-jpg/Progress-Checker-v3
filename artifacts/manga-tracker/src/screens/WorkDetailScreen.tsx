@@ -401,20 +401,27 @@ export default function WorkDetailScreen({
                 </div>
               )}
 
-              {/* テキスト検索ボタン */}
-              {hasTextSections && !sectionSelectMode && (
-                <button onClick={() => setShowTextSearch((v) => !v)}
+              {/* テキスト検索ボタン（常時表示、hasTextSectionsのみ） */}
+              {hasTextSections && (
+                <button
+                  onClick={() => { if (!sectionSelectMode) setShowTextSearch((v) => !v); }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border active:scale-95 transition-transform"
-                  style={{ color: showTextSearch ? accentHex : "#787c99", borderColor: showTextSearch ? accentHex : "#3b4261" }}
+                  style={sectionSelectMode
+                    ? { color: "#3b4261", borderColor: "#3b4261" }
+                    : { color: showTextSearch ? accentHex : "#787c99", borderColor: showTextSearch ? accentHex : "#3b4261" }
+                  }
                 ><Search size={20} /></button>
               )}
 
-              {/* 設定ボタン */}
-              {!locked && !sectionSelectMode && (
-                <button onClick={() => setShowWorkEdit(true)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] text-[#787c99] active:scale-95 transition-transform">
-                  <Settings size={16} />
-                </button>
-              )}
+              {/* 設定ボタン（常時表示、ロック中・選択モード中は薄く） */}
+              <button
+                onClick={() => { if (!locked && !sectionSelectMode) setShowWorkEdit(true); }}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform"
+                style={{ color: locked || sectionSelectMode ? "#3b4261" : "#787c99" }}
+                title={locked ? "ロック中" : sectionSelectMode ? "選択モード中" : "設定"}
+              >
+                <Settings size={16} />
+              </button>
             </div>
           </div>
           {sectionSelectMode && (

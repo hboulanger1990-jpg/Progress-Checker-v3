@@ -257,7 +257,6 @@ export default function WorkDetailScreen({
     onReorderItems(sectionId, newItems, newStatuses);
     setItemMoveTargetIdx(null);
     setSelectedItemIdxs(new Set());
-    setItemSelectMode(null);
   }
 
   // ---- セクションドラッグ（ロック中でない通常モードのみ） ----
@@ -346,11 +345,12 @@ export default function WorkDetailScreen({
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
-              {/* セクション選択モードボタン（複数セクションある場合のみ） */}
-              {!locked && work.sections.length > 1 && (
+              {/* セクション選択モードボタン（複数セクションある場合のみ、常時表示） */}
+              {work.sections.length > 1 && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (locked) return;
                     if (sectionSelectMode) {
                       setSectionSelectMode(false);
                       setSelectedSectionIds(new Set());
@@ -363,9 +363,9 @@ export default function WorkDetailScreen({
                   className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
                   style={sectionSelectMode
                     ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
                   }
-                  title={sectionSelectMode ? "完了" : "セクション並び替え"}
+                  title={sectionSelectMode ? "完了" : locked ? "ロック中" : "セクション並び替え"}
                 >
                   {sectionSelectMode
                     ? <><Check size={14} /><span className="text-xs font-bold">完了</span></>
@@ -576,31 +576,36 @@ export default function WorkDetailScreen({
                           {section.mode === "text" && !locked && (
                             <>
                               {/* 項目選択モードボタン */}
-                              {section.items && section.items.length > 1 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (isThisSectionItemSelect) {
-                                      setItemSelectMode(null);
-                                    } else {
-                                      setItemSelectMode(section.id);
-                                      setSelectedItemIdxs(new Set());
-                                      setItemMoveTargetIdx(null);
+                              {section.items && section.items.length > 1 && (() => {
+                                const itemIsReverse = (section.sortOrder ?? "default") === "reverse";
+                                const itemSelectDisabled = !isThisSectionItemSelect && itemIsReverse;
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (itemSelectDisabled) return;
+                                      if (isThisSectionItemSelect) {
+                                        setItemSelectMode(null);
+                                      } else {
+                                        setItemSelectMode(section.id);
+                                        setSelectedItemIdxs(new Set());
+                                        setItemMoveTargetIdx(null);
+                                      }
+                                    }}
+                                    className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
+                                    style={isThisSectionItemSelect
+                                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                                      : { backgroundColor: "transparent", borderColor: "transparent", color: itemSelectDisabled ? "#3b4261" : "#787c99" }
                                     }
-                                  }}
-                                  className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
-                                  style={isThisSectionItemSelect
-                                    ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
-                                    : { backgroundColor: "transparent", borderColor: "transparent", color: "#787c99" }
-                                  }
-                                  title={isThisSectionItemSelect ? "完了" : "項目並び替え"}
-                                >
-                                  {isThisSectionItemSelect
-                                    ? <><Check size={12} /><span className="text-xs font-bold">完了</span></>
-                                    : <CheckSquare size={14} />
-                                  }
-                                </button>
-                              )}
+                                    title={isThisSectionItemSelect ? "完了" : itemIsReverse ? "逆順中は並び替え不可" : "項目並び替え"}
+                                  >
+                                    {isThisSectionItemSelect
+                                      ? <><Check size={12} /><span className="text-xs font-bold">完了</span></>
+                                      : <CheckSquare size={14} />
+                                    }
+                                  </button>
+                                );
+                              })()}
                               {/* 項目並び順ボタン（選択モード中は非表示） */}
                               {!isThisSectionItemSelect && (
                                 <div className="relative">

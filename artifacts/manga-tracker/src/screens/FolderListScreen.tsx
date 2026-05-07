@@ -1,4 +1,4 @@
-import { Pencil, Trash2, CloudUpload, LogOut, User as UserIcon, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine } from "lucide-react";
+import { Pencil, Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { AccentColor, Folder } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -26,11 +26,10 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Folder | null>(null);
   const [showBackup, setShowBackup] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // 通常の長押し選択（編集/削除）
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // 複数選択モード
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [moveTargetId, setMoveTargetId] = useState<string | "top" | null>(null);
@@ -47,9 +46,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
   }, [locked]);
 
   useEffect(() => {
-    if (!selectMode) {
-      setMoveTargetId(null);
-    }
+    if (!selectMode) setMoveTargetId(null);
   }, [selectMode]);
 
   const sorted = [...folders].sort((a, b) => b.updatedAt - a.updatedAt);
@@ -80,11 +77,9 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
 
   function executeMoveHere(targetId: string | "top") {
     if (selectedIds.size === 0) return;
-    // フォルダはupdatedAt降順で表示されているので、その順序で並び替え
     const list = [...sorted];
     const selected = list.filter((f) => selectedIds.has(f.id));
     const notSelected = list.filter((f) => !selectedIds.has(f.id));
-
     let insertIdx: number;
     if (targetId === "top") {
       insertIdx = 0;
@@ -92,19 +87,9 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
       const targetIdx = notSelected.findIndex((f) => f.id === targetId);
       insertIdx = targetIdx === -1 ? notSelected.length : targetIdx + 1;
     }
-
-    const result = [
-      ...notSelected.slice(0, insertIdx),
-      ...selected,
-      ...notSelected.slice(insertIdx),
-    ];
-
-    // updatedAtを書き換えて順序を固定する
+    const result = [...notSelected.slice(0, insertIdx), ...selected, ...notSelected.slice(insertIdx)];
     const now = Date.now();
-    const reordered = result.map((f, i) => ({
-      ...f,
-      updatedAt: now - i * 1000,
-    }));
+    const reordered = result.map((f, i) => ({ ...f, updatedAt: now - i * 1000 }));
     onReorder(reordered);
     setMoveTargetId(null);
   }
@@ -114,7 +99,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
   return (
     <div
       className="min-h-screen bg-[#1a1b26] flex flex-col"
-      onClick={() => { setSelectedId(null); }}
+      onClick={() => { setSelectedId(null); setShowUserMenu(false); }}
     >
       <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 pt-2 pb-3">
         <div className="max-w-lg mx-auto">
@@ -132,54 +117,76 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
-              {/* 選択モードボタン */}
-              {!locked && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (selectMode) {
-                      setSelectMode(false);
-                      setSelectedIds(new Set());
-                      setMoveTargetId(null);
-                    } else {
-                      setSelectMode(true);
-                      setSelectedId(null);
-                    }
-                  }}
-                  className="h-9 flex items-center justify-center rounded-xl border active:scale-95 transition-all px-2 gap-1"
-                  style={selectMode
-                    ? { backgroundColor: "#7aa2f7", borderColor: "#7aa2f7", color: "#1a1b26" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
-                  }
-                  title={selectMode ? "完了" : "選択モード"}
-                >
-                  {selectMode
-                    ? <><Check size={14} /><span className="text-xs font-bold">完了</span></>
-                    : <CheckSquare size={16} />
-                  }
-                </button>
-              )}
-
+              {/* 選択モードボタン（常に表示、ロック中は薄く） */}
               <button
-                onClick={() => setShowBackup(true)}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform text-[#787c99]"
-                title="バックアップ"
-              ><CloudUpload size={20} /></button>
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (locked) return;
+                  if (selectMode) {
+                    setSelectMode(false);
+                    setSelectedIds(new Set());
+                    setMoveTargetId(null);
+                  } else {
+                    setSelectMode(true);
+                    setSelectedId(null);
+                  }
+                }}
+                className="h-9 flex items-center justify-center rounded-xl border active:scale-95 transition-all px-2 gap-1"
+                style={selectMode
+                  ? { backgroundColor: "#7aa2f7", borderColor: "#7aa2f7", color: "#1a1b26" }
+                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
+                }
+                title={selectMode ? "完了" : locked ? "ロック中" : "選択モード"}
+              >
+                {selectMode
+                  ? <><Check size={14} /><span className="text-xs font-bold">完了</span></>
+                  : <CheckSquare size={16} />
+                }
+              </button>
 
-              {user ? (
+              {/* ユーザーメニューボタン（バックアップ統合） */}
+              <div className="relative">
                 <button
-                  onClick={onSignOut}
-                  className="flex items-center gap-1.5 text-xs text-[#787c99] bg-[#24283b] px-3 py-1.5 rounded-xl border border-[#3b4261] active:scale-95 transition-transform h-9"
-                ><LogOut size={20} /></button>
-              ) : (
-                <button
-                  onClick={onSignIn}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform text-[#787c99]"
-                  title="Googleでログイン"
-                ><UserIcon size={20} /></button>
-              )}
+                  onClick={(e) => { e.stopPropagation(); setShowUserMenu((v) => !v); }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform"
+                  style={{ color: user ? "#9ece6a" : "#787c99" }}
+                  title={user ? "メニュー" : "メニュー"}
+                >
+                  {user ? <Snail size={20} /> : <UserIcon size={20} />}
+                </button>
+                {showUserMenu && (
+                  <div
+                    className="absolute right-0 top-11 z-30 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-2xl overflow-hidden min-w-[160px]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {user ? (
+                      <button
+                        onClick={() => { onSignOut(); setShowUserMenu(false); }}
+                        className="w-full px-4 py-3 text-left text-sm text-[#a9b1d6] hover:bg-[#24283b] transition-colors flex items-center gap-2"
+                      >
+                        <LogOut size={16} /> ログアウト
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { onSignIn(); setShowUserMenu(false); }}
+                        className="w-full px-4 py-3 text-left text-sm text-[#a9b1d6] hover:bg-[#24283b] transition-colors flex items-center gap-2"
+                      >
+                        <UserIcon size={16} /> Googleでログイン
+                      </button>
+                    )}
+                    <div className="border-t border-[#3b4261]" />
+                    <button
+                      onClick={() => { setShowBackup(true); setShowUserMenu(false); }}
+                      className="w-full px-4 py-3 text-left text-sm text-[#a9b1d6] hover:bg-[#24283b] transition-colors flex items-center gap-2"
+                    >
+                      <CloudUpload size={16} /> バックアップ
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
           {!selectMode && (
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
@@ -196,9 +203,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
           )}
           {selectMode && (
             <p className="text-xs text-[#787c99] text-center py-1">
-              {selectedIds.size > 0
-                ? `${selectedIds.size}件選択中 — 移動先の「ここに移動」をタップ`
-                : "タップして選択、もう一度タップで解除"}
+              {selectedIds.size > 0 ? `${selectedIds.size}件選択中` : "タップして選択、もう一度タップで解除"}
             </p>
           )}
         </div>
@@ -213,7 +218,6 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
           </div>
         ) : (
           <div className="space-y-2">
-            {/* 先頭への「ここに移動」 */}
             {showMoveButton && (
               <MoveHereButton
                 isTarget={moveTargetId === "top"}
@@ -241,7 +245,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
                     onTouchStart={() => { if (!selectMode) handlePressStart(folder.id); }}
                     onTouchEnd={handlePressEnd}
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(folder.id); } }}
-                    className={`w-full bg-[#24283b] border rounded-2xl px-4 py-3.5 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"}`}
+                    className={`w-full bg-[#24283b] border rounded-2xl px-4 py-3.5 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked || isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"}`}
                     style={{ borderLeftColor: hex, borderLeftWidth: "4px" }}
                   >
                     {selectMode && (
@@ -257,7 +261,6 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
                       <button onClick={() => handleDelete(folder)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
                     </div>
                   )}
-                  {/* 各アイテムの後の「ここに移動」 */}
                   {showMoveButton && !isChecked && (
                     <MoveHereButton
                       isTarget={moveTargetId === folder.id}
@@ -301,34 +304,16 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
   );
 }
 
-function MoveHereButton({
-  isTarget,
-  onToggle,
-  onExecute,
-  accentHex,
-}: {
-  isTarget: boolean;
-  onToggle: () => void;
-  onExecute: () => void;
-  accentHex: string;
-}) {
+function MoveHereButton({ isTarget, onToggle, onExecute, accentHex }: { isTarget: boolean; onToggle: () => void; onExecute: () => void; accentHex: string }) {
   return (
     <div className="flex items-center gap-2 py-0.5 px-1">
       <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
       {isTarget ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); onExecute(); }}
-          className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all"
-          style={{ backgroundColor: accentHex, color: "#1a1b26" }}
-        >
+        <button onClick={(e) => { e.stopPropagation(); onExecute(); }} className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all" style={{ backgroundColor: accentHex, color: "#1a1b26" }}>
           <ArrowDownToLine size={14} />
         </button>
       ) : (
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="w-7 h-7 flex items-center justify-center rounded-full border active:scale-95 transition-all"
-          style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}
-        >
+        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="w-7 h-7 flex items-center justify-center rounded-full border active:scale-95 transition-all" style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}>
           <ArrowDownToLine size={14} />
         </button>
       )}

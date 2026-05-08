@@ -147,7 +147,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     const text = e.dataTransfer.getData("text/plain");
     if (!text) return;
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    [...lines].reverse().forEach((title) => {
+    [...lines].forEach((title) => {
       onAdd({ title, accentColor: folder.accentColor, labelUnread: folderDefaults.labelUnread, labelRead: folderDefaults.labelRead, unit: folderDefaults.unit, sectionLabel: "", tags: [] });
     });
   }

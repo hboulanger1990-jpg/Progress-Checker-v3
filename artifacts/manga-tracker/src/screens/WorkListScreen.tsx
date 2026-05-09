@@ -206,7 +206,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
       if (!tags.includes(t)) onEdit(id, { tags: [...tags, t] });
     });
     setTagActionInput("");
-    setShowTagAction(false);
   }
 
   function bulkRemoveTag(tag: string) {
@@ -215,7 +214,20 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
       if (!w) return;
       onEdit(id, { tags: (w.tags ?? []).filter((t) => t !== tag) });
     });
+  }
+
+  function bulkDeleteWorks() {
+    if (!window.confirm(`選択中の${selectedIds.size}件を削除しますか？\nこの操作は元に戻せません。`)) return;
+    selectedIds.forEach((id) => onDelete(id));
+    setSelectMode(false);
+    setSelectedIds(new Set());
     setShowTagAction(false);
+  }
+
+  function bulkSetColor(color: import("../types").AccentColor) {
+    selectedIds.forEach((id) => {
+      onEdit(id, { accentColor: color });
+    });
   }
 
   const selectedWorks = folder.works.filter((w) => selectedIds.has(w.id));
@@ -645,11 +657,33 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     </div>
                   </div>
                 )}
+                {/* 色変更 */}
+                <div>
+                  <p className="text-xs text-[#787c99] mb-1.5">色を変更</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {(Object.entries(ACCENT_COLORS) as [import("../types").AccentColor, { hex: string }][]).map(([key, { hex }]) => (
+                      <button
+                        key={key}
+                        onClick={() => bulkSetColor(key)}
+                        className="w-7 h-7 rounded-full active:scale-95 transition-transform border-2"
+                        style={{ backgroundColor: hex, borderColor: "#1a1b26" }}
+                        title={key}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {/* 一括削除 */}
+                <button
+                  onClick={bulkDeleteWorks}
+                  className="w-full py-2 rounded-xl border border-[#f7768e] text-[#f7768e] text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 size={14} /> {selectedIds.size}件を削除
+                </button>
                 <button onClick={() => setShowTagAction(false)} className="w-full py-2 rounded-xl border border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform">閉じる</button>
               </div>
             ) : (
               <div className="flex gap-2">
-                <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center gap-2"><Tag size={16} /> タグ操作</button>
+                <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center gap-2"><Tag size={16} /> 選択中の操作</button>
               </div>
             )}
           </div>

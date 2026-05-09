@@ -123,12 +123,12 @@ export default function App() {
   }
 
   // ---- Folder CRUD ----
-  function addFolder(title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
-    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, works: [], updatedAt: Date.now() };
+  function addFolder(title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") {
+    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, itemSize, works: [], updatedAt: Date.now() };
     mutate((prev) => [f, ...prev]);
   }
-  function editFolder(id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
-    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, updatedAt: Date.now() } : f).sort((a, b) => b.updatedAt - a.updatedAt));
+  function editFolder(id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") {
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, itemSize, updatedAt: Date.now() } : f).sort((a, b) => b.updatedAt - a.updatedAt));
   }
   function deleteFolder(id: string) {
     mutate((prev) => prev.filter((f) => f.id !== id));

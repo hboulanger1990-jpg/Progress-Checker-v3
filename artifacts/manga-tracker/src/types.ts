@@ -52,6 +52,7 @@ export interface Folder {
   defaultLabelUnread?: string;
   defaultLabelRead?: string;
   defaultUnit?: string;
+  itemSize?: "1" | "2" | "full";
   works: Work[];
   updatedAt: number;
 }

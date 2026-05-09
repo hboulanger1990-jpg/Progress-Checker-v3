@@ -44,6 +44,7 @@ const PROGRESS_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
 
 export default function WorkListScreen({ folder, locked, onToggleLock, onBack, onSelect, onToggleCompleted, onAdd, onEdit, onDelete, onReorder, onSetSortOrder }: Props) {
   const [search, setSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Work | null>(null);
@@ -73,6 +74,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     labelRead: folder.defaultLabelRead || "完了",
     unit: folder.defaultUnit || "",
   };
+  const itemSize = folder.itemSize ?? "full";
 
   useEffect(() => {
     const handler = (e: Event) => { e.stopImmediatePropagation(); };
@@ -147,7 +149,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     const text = e.dataTransfer.getData("text/plain");
     if (!text) return;
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    [...lines].forEach((title) => {
+    [...lines].reverse().forEach((title) => {
       onAdd({ title, accentColor: folder.accentColor, labelUnread: folderDefaults.labelUnread, labelRead: folderDefaults.labelRead, unit: folderDefaults.unit, sectionLabel: "", tags: [] });
     });
   }
@@ -228,6 +230,13 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   // 「ここに移動」ボタンの表示条件: selectMode && selectedIds.size > 0 && アイテムが選択されていない場所
   const showMoveButton = selectMode && selectedIds.size > 0;
 
+  // 完了タイプのタイトルクラス
+  const readTitleClass = itemSize === "1"
+    ? "line-clamp-1"
+    : itemSize === "2"
+    ? "line-clamp-2"
+    : "whitespace-pre-wrap break-words";
+
   return (
     <div
       className="min-h-screen bg-[#1a1b26] flex flex-col relative"
@@ -271,6 +280,19 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 }
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
+
+              {/* 完了タイプ: 検索ボタン */}
+              {isReadMode && !selectMode && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowSearch((v) => !v); if (showSearch) { setSearch(""); } }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
+                  style={showSearch
+                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
+                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                  }
+                  title="検索"
+                ><Search size={16} /></button>
+              )}
 
               {/* 並び順ボタン（選択モード中は非表示） */}
               {!selectMode && (
@@ -334,7 +356,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             </div>
           </div>
 
-          {!selectMode && (
+          {/* 進捗タイプ: 常時表示の検索バー */}
+          {!isReadMode && !selectMode && (
             <>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
@@ -358,6 +381,39 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
               )}
             </>
           )}
+
+          {/* 完了タイプ: 検索バーはボタンで表示切替、タグは常時表示 */}
+          {isReadMode && !selectMode && (
+            <>
+              {showSearch && (
+                <div className="relative mb-2">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="作品を検索..."
+                    autoFocus
+                    className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
+                  />
+                  {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>}
+                </div>
+              )}
+              {allTags.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap">
+                  {allTags.map((tag) => {
+                    const isActive = selectedTag === tag;
+                    return (
+                      <button key={tag} onClick={() => setSelectedTag(isActive ? null : tag)}
+                        className="text-xs px-2.5 py-1 rounded-full border transition-all active:scale-95"
+                        style={isActive ? { backgroundColor: folderHex, color: "#1a1b26", borderColor: folderHex } : { backgroundColor: "#24283b", color: "#787c99", borderColor: "#3b4261" }}
+                      >#{tag}</button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
           {selectMode && (
             <p className="text-xs text-[#787c99] text-center py-1">
               {selectedIds.size > 0
@@ -407,28 +463,30 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     onTouchStart={(e) => { if (!selectMode && !locked) handleTouchStart(e, work.id); }}
                     onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
-                    className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border flex items-center gap-3"
+                    className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
                     style={{ backgroundColor: done ? hex : "#24283b", borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? hex : "#3b4261", outline: isChecked ? "2px solid #7aa2f744" : "none" }}
                   >
-                    {selectMode && (
-                      <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "#4a5177" }}>
-                        {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
-                      </span>
-                    )}
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all"
+                    <div className="flex items-start gap-2">
+                      {selectMode && (
+                        <span className="shrink-0 mt-0.5" style={{ color: isChecked ? "#7aa2f7" : "#4a5177" }}>
+                          {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
+                        </span>
+                      )}
+                      <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
                         style={{ borderColor: done ? "#1a1b26" : hex, backgroundColor: done ? "#1a1b26" : "transparent", color: done ? hex : "transparent" }}
                       ><Check size={20} /></span>
-                      <span className="font-bold text-sm leading-tight truncate flex-1 min-w-0" style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
-                      {work.tags && work.tags.length > 0 && (
-                        <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[45%]">
-                          {work.tags.map((tag) => (
-                            <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
-                              style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
-                            >#{tag}</span>
-                          ))}
-                        </div>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <span className={`font-bold text-sm leading-snug ${readTitleClass}`} style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
+                        {work.tags && work.tags.length > 0 && (
+                          <div className="flex gap-1 flex-wrap mt-1">
+                            {work.tags.map((tag) => (
+                              <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                                style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
+                              >#{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </button>
                   {isSelected && !selectMode && !locked && (

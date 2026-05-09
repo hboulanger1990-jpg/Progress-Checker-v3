@@ -14,8 +14,8 @@ interface Props {
   onSignIn: () => void;
   onSignOut: () => void;
   onSelect: (f: Folder) => void;
-  onAdd: (title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) => void;
-  onEdit: (id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) => void;
+  onAdd: (title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") => void;
+  onEdit: (id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") => void;
   onDelete: (id: string) => void;
   onReorder: (newFolders: Folder[]) => void;
   onImport: (data: Folder[]) => void;
@@ -291,11 +291,11 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
 
       {showAdd && (
         <FolderModal mode="add" onClose={() => setShowAdd(false)}
-          onSave={(title, color, type, dlu, dlr, du) => { onAdd(title, color, type, dlu, dlr, du); setShowAdd(false); }} />
+          onSave={(title, color, type, dlu, dlr, du, itemSize) => { onAdd(title, color, type, dlu, dlr, du, itemSize); setShowAdd(false); }} />
       )}
       {editTarget && (
         <FolderModal mode="edit" initial={editTarget} onClose={() => setEditTarget(null)}
-          onSave={(title, color, type, dlu, dlr, du) => { onEdit(editTarget.id, title, color, type, dlu, dlr, du); setEditTarget(null); }} />
+          onSave={(title, color, type, dlu, dlr, du, itemSize) => { onEdit(editTarget.id, title, color, type, dlu, dlr, du, itemSize); setEditTarget(null); }} />
       )}
       {showBackup && (
         <BackupModal data={folders} onClose={() => setShowBackup(false)} onImport={onImport} />

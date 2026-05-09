@@ -85,8 +85,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
     if (sectionMode === "text") {
       const validItems = items.filter((i) => i.trim() !== "");
       if (validItems.length === 0) { setError("項目を1つ以上入力してください"); return; }
-      const orderedItems = mode === "add" ? [...validItems].reverse() : validItems;
-      onSave(l, 1, orderedItems.length, "text", orderedItems);
+      onSave(l, 1, validItems.length, "text", validItems);
       return;
     }
 

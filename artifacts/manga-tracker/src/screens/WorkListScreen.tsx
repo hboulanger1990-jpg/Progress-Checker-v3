@@ -382,6 +382,24 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             </>
           )}
 
+          {/* 完了タイプ: ゲージ */}
+          {isReadMode && !selectMode && (() => {
+            const totalWorks = folder.works.length;
+            const completedWorks = folder.works.filter((w) => w.completed).length;
+            const pct = totalWorks === 0 ? 0 : Math.round((completedWorks / totalWorks) * 100);
+            return (
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-[#787c99]">完了 {completedWorks} / {totalWorks}</span>
+                  <span className="text-xs font-bold" style={{ color: folderHex }}>{pct}%</span>
+                </div>
+                <div className="h-1 bg-[#24283b] rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: folderHex }} />
+                </div>
+              </div>
+            );
+          })()}
+
           {/* 完了タイプ: 検索バーはボタンで表示切替、タグは常時表示 */}
           {isReadMode && !selectMode && (
             <>
@@ -475,18 +493,33 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                       <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
                         style={{ borderColor: done ? "#1a1b26" : hex, backgroundColor: done ? "#1a1b26" : "transparent", color: done ? hex : "transparent" }}
                       ><Check size={20} /></span>
-                      <div className="flex-1 min-w-0">
-                        <span className={`font-bold text-sm leading-snug ${readTitleClass}`} style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
-                        {work.tags && work.tags.length > 0 && (
-                          <div className="flex gap-1 flex-wrap mt-1">
-                            {work.tags.map((tag) => (
-                              <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
-                                style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
-                              >#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      {itemSize === "1" ? (
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <span className={`font-bold text-sm leading-snug line-clamp-1 flex-1 min-w-0`} style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
+                          {work.tags && work.tags.length > 0 && (
+                            <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[45%]">
+                              {work.tags.map((tag) => (
+                                <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                                  style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
+                                >#{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex-1 min-w-0">
+                          <span className={`font-bold text-sm leading-snug ${readTitleClass}`} style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
+                          {work.tags && work.tags.length > 0 && (
+                            <div className="flex gap-1 flex-wrap mt-1">
+                              {work.tags.map((tag) => (
+                                <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                                  style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
+                                >#{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </button>
                   {isSelected && !selectMode && !locked && (

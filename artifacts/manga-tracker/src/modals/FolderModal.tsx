@@ -53,13 +53,24 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
         className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
         style={{ maxHeight: "90dvh" }}
       >
+        {/* タイトル行 + ボタン */}
         <div className="flex items-center justify-between gap-3 mb-5">
           <h2 className="text-lg font-bold text-[#c0caf5]">
             {mode === "add" ? "フォルダを追加" : "フォルダを編集"}
           </h2>
           <div className="flex gap-2 shrink-0">
-            <button onClick={onClose} className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform">戻る</button>
-            <button onClick={handleSave} className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform">{mode === "add" ? "追加" : "保存"}</button>
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+            >
+              戻る
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+            >
+              {mode === "add" ? "追加" : "保存"}
+            </button>
           </div>
         </div>
 
@@ -141,45 +152,31 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
           )}
 
           {folderType === "read" && (
-            <div className="border-t border-[#3b4261] pt-4">
-              <p className="text-xs text-[#787c99] mb-3">ステータスラベル（省略可）</p>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div>
-                  <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
-                  <input
-                    value={defaultLabelUnread}
-                    onChange={(e) => setDefaultLabelUnread(e.target.value)}
-                    placeholder="未完了"
-                    className={`${inputClass} placeholder-[#4a5177]`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
-                  <input
-                    value={defaultLabelRead}
-                    onChange={(e) => setDefaultLabelRead(e.target.value)}
-                    placeholder="完了"
-                    className={`${inputClass} placeholder-[#4a5177]`}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[#787c99] mb-2">マスのサイズ</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([["1", "1行"], ["2", "2行"], ["full", "全文"]] as const).map(([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => setItemSize(val)}
-                      className="py-2.5 rounded-xl border text-sm font-medium transition-colors active:scale-95"
-                      style={itemSize === val
-                        ? { backgroundColor: `${ACCENT_COLORS[color].hex}22`, borderColor: ACCENT_COLORS[color].hex, color: ACCENT_COLORS[color].hex }
-                        : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }}
-                    >{label}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+  <div className="border-t border-[#3b4261] pt-4">
+    <p className="text-xs text-[#787c99] mb-3">ステータスラベル（省略可）</p>
+    <div className="grid grid-cols-2 gap-3 mb-4">
+      <div>
+        <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
+        <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} placeholder="未完了" className={`${inputClass} placeholder-[#4a5177]`} />
+      </div>
+      <div>
+        <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
+        <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} placeholder="完了" className={`${inputClass} placeholder-[#4a5177]`} />
+      </div>
+    </div>
+    <label className="block text-xs text-[#787c99] mb-2">マスのサイズ</label>
+    <div className="grid grid-cols-3 gap-2">
+      {([["1", "1行"], ["2", "2行"], ["full", "全文"]] as const).map(([val, label]) => (
+        <button key={val} onClick={() => setItemSize(val)}
+          className="py-2.5 rounded-xl border text-sm font-medium transition-colors active:scale-95"
+          style={itemSize === val
+            ? { backgroundColor: `${ACCENT_COLORS[color].hex}22`, borderColor: ACCENT_COLORS[color].hex, color: ACCENT_COLORS[color].hex }
+            : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }}
+        >{label}</button>
+      ))}
+    </div>
+  </div>
+)}
 
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
         </div>

@@ -48,6 +48,7 @@ export default function WorkDetailScreen({
   const [sectionModal, setSectionModal] = useState<SectionModalState>(null);
   const [textSearch, setTextSearch] = useState("");
   const [showTextSearch, setShowTextSearch] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"read" | "unread" | null>(null);
 
   const [sectionSortOrder, setSectionSortOrder] = useState<SortOrder>(() => work.sections[0]?.sortOrder ?? "default");
   const [showSectionSortMenu, setShowSectionSortMenu] = useState(false);
@@ -309,12 +310,34 @@ export default function WorkDetailScreen({
 
   const filteredSections = useCallback(() => {
     const sections = applySectionSort(work.sections);
-    if (!textSearch.trim()) return sections;
     return sections.map((s) => {
-      if (s.mode !== "text" || !s.items) return s;
-      return { ...s, _filteredItems: s.items.filter((item) => item.toLowerCase().includes(textSearch.toLowerCase())) };
+      if (s.mode === "text" && s.items) {
+        let items = textSearch.trim()
+          ? s.items.filter((item) => item.toLowerCase().includes(textSearch.toLowerCase()))
+          : s.items;
+        if (statusFilter) {
+          items = items.filter((item, i) => {
+            const num = s.startNum + s.items!.indexOf(item);
+            const isRead = !!s.statuses[num];
+            return statusFilter === "read" ? isRead : !isRead;
+          });
+        }
+        return { ...s, _filteredItems: items };
+      }
+      if (s.mode !== "text" && statusFilter) {
+        const allNums = Array.from({ length: s.endNum - s.startNum + 1 }, (_, i) => s.startNum + i);
+        const filtered = allNums.filter((num) => {
+          const isRead = !!s.statuses[num];
+          return statusFilter === "read" ? isRead : !isRead;
+        });
+        return { ...s, _filteredNums: filtered };
+      }
+      if (textSearch.trim() && s.mode === "text" && s.items) {
+        return { ...s, _filteredItems: s.items.filter((item) => item.toLowerCase().includes(textSearch.toLowerCase())) };
+      }
+      return s;
     });
-  }, [work.sections, textSearch, sectionSortOrder]);
+  }, [work.sections, textSearch, sectionSortOrder, statusFilter]);
 
   const showSectionMoveButton = sectionSelectMode && selectedSectionIds.size > 0;
 
@@ -434,26 +457,41 @@ export default function WorkDetailScreen({
         </div>
       </header>
 
-      <div className="px-4 py-3 max-w-lg mx-auto w-full">
-        <div className="bg-[#24283b] border border-[#3b4261] rounded-2xl px-4 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex gap-4 text-xs text-[#787c99]">
-              <span><span className="inline-block w-2 h-2 rounded-sm mr-1" style={{ backgroundColor: accentHex }} />{work.labelRead} {read}</span>
-              <span className="text-[#4a5177]">/ {total}{work.unit}</span>
-            </div>
-            <span className="text-xs font-bold" style={{ color: accentHex }}>{percent}%</span>
-          </div>
-          <div className="h-2 bg-[#1a1b26] rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: accentHex }} />
-          </div>
+      <div className="px-4 pt-3 pb-2 max-w-lg mx-auto w-full">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-[#787c99]">
+            <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: accentHex }} />
+            {work.labelRead} {read} / {total}{work.unit}
+          </span>
+          <span className="text-xs font-bold" style={{ color: accentHex }}>{percent}%</span>
         </div>
-      </div>
-
-      <div className="px-4 max-w-lg mx-auto w-full mb-2">
-        <div className="flex gap-4 text-xs text-[#787c99]">
-          <span className="flex items-center gap-1.5"><span className="inline-block w-5 h-5 rounded border border-[#3b4261] bg-[#24283b]" />{work.labelUnread}</span>
-          <span className="flex items-center gap-1.5"><span className="inline-block w-5 h-5 rounded border" style={{ backgroundColor: accentHex, borderColor: accentHex }} />{work.labelRead}</span>
-          {locked && <span className="flex items-center gap-1 text-[#f7768e]"><LockKeyhole size={11} /> ロック中</span>}
+        <div className="h-1 bg-[#24283b] rounded-full overflow-hidden mb-2">
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: accentHex }} />
+        </div>
+        <div className="flex gap-3 text-xs text-[#787c99]">
+          <button
+            onClick={() => { if (!locked) setStatusFilter((v) => v === "unread" ? null : "unread"); }}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all active:scale-95"
+            style={statusFilter === "unread"
+              ? { backgroundColor: "#24283b", borderColor: "#787c99", color: "#c0caf5" }
+              : { backgroundColor: "transparent", borderColor: "transparent", color: locked ? "#3b4261" : "#787c99" }
+            }
+          >
+            <span className="inline-block w-3.5 h-3.5 rounded border border-[#3b4261] bg-[#24283b] shrink-0" />
+            {work.labelUnread}
+          </button>
+          <button
+            onClick={() => { if (!locked) setStatusFilter((v) => v === "read" ? null : "read"); }}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all active:scale-95"
+            style={statusFilter === "read"
+              ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
+              : { backgroundColor: "transparent", borderColor: "transparent", color: locked ? "#3b4261" : "#787c99" }
+            }
+          >
+            <span className="inline-block w-3.5 h-3.5 rounded shrink-0" style={{ backgroundColor: accentHex }} />
+            {work.labelRead}
+          </button>
+          {locked && <span className="flex items-center gap-1 text-[#f7768e] ml-auto"><LockKeyhole size={11} /> ロック中</span>}
         </div>
       </div>
 
@@ -724,7 +762,9 @@ export default function WorkDetailScreen({
                       </div>
                     ) : (
                       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-                        {Array.from({ length: section.endNum - section.startNum + 1 }, (_, i) => section.startNum + i).map((num) => {
+                        {((section as Section & { _filteredNums?: number[] })._filteredNums
+                          ?? Array.from({ length: section.endNum - section.startNum + 1 }, (_, i) => section.startNum + i)
+                        ).map((num) => {
                           const isRead = !!section.statuses[num];
                           return (
                             <button key={num} id={`item-${section.id}-${num}`}

@@ -382,56 +382,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             </>
           )}
 
-          {/* 完了タイプ: ゲージ */}
-          {isReadMode && !selectMode && (() => {
-            const totalWorks = folder.works.length;
-            const completedWorks = folder.works.filter((w) => w.completed).length;
-            const pct = totalWorks === 0 ? 0 : Math.round((completedWorks / totalWorks) * 100);
-            return (
-              <div className="mb-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-[#787c99]">完了 {completedWorks} / {totalWorks}</span>
-                  <span className="text-xs font-bold" style={{ color: folderHex }}>{pct}%</span>
-                </div>
-                <div className="h-1 bg-[#24283b] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: folderHex }} />
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* 完了タイプ: 検索バーはボタンで表示切替、タグは常時表示 */}
-          {isReadMode && !selectMode && (
-            <>
-              {showSearch && (
-                <div className="relative mb-2">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="作品を検索..."
-                    autoFocus
-                    className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
-                  />
-                  {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>}
-                </div>
-              )}
-              {allTags.length > 0 && (
-                <div className="flex gap-1.5 flex-wrap">
-                  {allTags.map((tag) => {
-                    const isActive = selectedTag === tag;
-                    return (
-                      <button key={tag} onClick={() => setSelectedTag(isActive ? null : tag)}
-                        className="text-xs px-2.5 py-1 rounded-full border transition-all active:scale-95"
-                        style={isActive ? { backgroundColor: folderHex, color: "#1a1b26", borderColor: folderHex } : { backgroundColor: "#24283b", color: "#787c99", borderColor: "#3b4261" }}
-                      >#{tag}</button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-
           {selectMode && (
             <p className="text-xs text-[#787c99] text-center py-1">
               {selectedIds.size > 0
@@ -443,6 +393,55 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
       </header>
 
       <main className="flex-1 px-4 py-3 max-w-lg mx-auto w-full pb-32">
+        {/* 完了タイプ: ゲージ（スクロールで消える） */}
+        {isReadMode && !selectMode && (() => {
+          const totalWorks = folder.works.length;
+          const completedWorks = folder.works.filter((w) => w.completed).length;
+          const pct = totalWorks === 0 ? 0 : Math.round((completedWorks / totalWorks) * 100);
+          return (
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-[#787c99]">完了 {completedWorks} / {totalWorks}</span>
+                <span className="text-xs font-bold" style={{ color: folderHex }}>{pct}%</span>
+              </div>
+              <div className="h-1 bg-[#24283b] rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: folderHex }} />
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 完了タイプ: 検索バー・タグ（ゲージの下） */}
+        {isReadMode && !selectMode && (
+          <>
+            {showSearch && (
+              <div className="relative mb-2">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="作品を検索..."
+                  autoFocus
+                  className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
+                />
+                {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>}
+              </div>
+            )}
+            {allTags.length > 0 && (
+              <div className="flex gap-1.5 flex-wrap mb-2">
+                {allTags.map((tag) => {
+                  const isActive = selectedTag === tag;
+                  return (
+                    <button key={tag} onClick={() => setSelectedTag(isActive ? null : tag)}
+                      className="text-xs px-2.5 py-1 rounded-full border transition-all active:scale-95"
+                      style={isActive ? { backgroundColor: folderHex, color: "#1a1b26", borderColor: folderHex } : { backgroundColor: "#24283b", color: "#787c99", borderColor: "#3b4261" }}
+                    >#{tag}</button>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
         {sortedFiltered.length === 0 ? (
           <div className="mt-20 text-center space-y-2">
             <div className="flex justify-center"><ListChecks size={40} /></div>

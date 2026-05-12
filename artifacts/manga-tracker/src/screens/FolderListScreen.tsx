@@ -33,6 +33,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [moveTargetId, setMoveTargetId] = useState<string | "top" | null>(null);
+  const [showMoveMode, setShowMoveMode] = useState(false);
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -42,14 +43,19 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
       setSelectedIds(new Set());
       setSelectedId(null);
       setMoveTargetId(null);
+      setShowMoveMode(false);
     }
   }, [locked]);
 
   useEffect(() => {
-    if (!selectMode) setMoveTargetId(null);
+    if (!selectMode) {
+      setMoveTargetId(null);
+      setShowMoveMode(false);
+    }
   }, [selectMode]);
 
-  const sorted = [...folders].sort((a, b) => b.updatedAt - a.updatedAt);
+  // 登録順のまま（updatedAtでソートしない）
+  const sorted = [...folders];
   const filtered = search ? sorted.filter((f) => f.title.toLowerCase().includes(search.toLowerCase())) : sorted;
 
   function handleDelete(f: Folder) {
@@ -73,6 +79,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
       return next;
     });
     setMoveTargetId(null);
+    setShowMoveMode(false);
   }
 
   function executeMoveHere(targetId: string | "top") {
@@ -88,13 +95,11 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
       insertIdx = targetIdx === -1 ? notSelected.length : targetIdx + 1;
     }
     const result = [...notSelected.slice(0, insertIdx), ...selected, ...notSelected.slice(insertIdx)];
-    const now = Date.now();
-    const reordered = result.map((f, i) => ({ ...f, updatedAt: now - i * 1000 }));
-    onReorder(reordered);
+    onReorder(result);
     setMoveTargetId(null);
   }
 
-  const showMoveButton = selectMode && selectedIds.size > 0;
+  const showMoveButton = showMoveMode && selectedIds.size > 0;
 
   return (
     <div
@@ -187,7 +192,8 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
             </div>
           </div>
 
-          {!selectMode && (
+          {/* 検索バー（選択モード中は不可視で領域確保） */}
+          <div style={selectMode ? { visibility: "hidden" } : {}}>
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
               <input
@@ -200,12 +206,7 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
                 <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>
               )}
             </div>
-          )}
-          {selectMode && (
-            <p className="text-xs text-[#787c99] text-center py-1">
-              {selectedIds.size > 0 ? `${selectedIds.size}件選択中` : "タップして選択、もう一度タップで解除"}
-            </p>
-          )}
+          </div>
         </div>
       </header>
 
@@ -276,6 +277,23 @@ export default function FolderListScreen({ folders, user, locked, onToggleLock, 
         )}
       </main>
 
+      {!locked && selectMode && (
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
+          <div className="max-w-lg mx-auto flex gap-2">
+            <button
+              onClick={() => { setShowMoveMode((v) => !v); setMoveTargetId(null); }}
+              disabled={selectedIds.size === 0}
+              className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+              style={showMoveMode
+                ? { backgroundColor: "#7aa2f7", borderColor: "#7aa2f7", color: "#1a1b26" }
+                : selectedIds.size === 0
+                  ? { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#3b4261" }
+                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#a9b1d6" }
+              }
+            ><ArrowDownToLine size={16} /> 移動</button>
+          </div>
+        </div>
+      )}
       {!locked && !selectMode && (
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
           <div className="max-w-lg mx-auto">

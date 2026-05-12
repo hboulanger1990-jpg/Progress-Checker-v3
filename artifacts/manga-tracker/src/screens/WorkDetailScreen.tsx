@@ -58,11 +58,13 @@ export default function WorkDetailScreen({
   const [sectionSelectMode, setSectionSelectMode] = useState(false);
   const [selectedSectionIds, setSelectedSectionIds] = useState<Set<string>>(new Set());
   const [sectionMoveTargetId, setSectionMoveTargetId] = useState<string | "top" | null>(null);
+  const [showSectionMoveMode, setShowSectionMoveMode] = useState(false);
 
   // テキスト項目選択モード（sectionId -> Set<idx>）
   const [itemSelectMode, setItemSelectMode] = useState<string | null>(null); // sectionId or null
   const [selectedItemIdxs, setSelectedItemIdxs] = useState<Set<number>>(new Set());
   const [itemMoveTargetIdx, setItemMoveTargetIdx] = useState<number | "top" | null>(null);
+  const [showItemMoveMode, setShowItemMoveMode] = useState(false);
 
   // セクションドラッグ（通常モード）
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
@@ -112,15 +114,18 @@ export default function WorkDetailScreen({
       setSectionSelectMode(false);
       setSelectedSectionIds(new Set());
       setSectionMoveTargetId(null);
+      setShowSectionMoveMode(false);
       setItemSelectMode(null);
       setSelectedItemIdxs(new Set());
       setItemMoveTargetIdx(null);
+      setShowItemMoveMode(false);
     }
   }, [locked]);
 
   useEffect(() => {
     if (!sectionSelectMode) {
       setSectionMoveTargetId(null);
+      setShowSectionMoveMode(false);
     }
   }, [sectionSelectMode]);
 
@@ -128,6 +133,7 @@ export default function WorkDetailScreen({
     if (!itemSelectMode) {
       setItemMoveTargetIdx(null);
       setSelectedItemIdxs(new Set());
+      setShowItemMoveMode(false);
     }
   }, [itemSelectMode]);
 
@@ -190,6 +196,7 @@ export default function WorkDetailScreen({
       return next;
     });
     setSectionMoveTargetId(null);
+    setShowSectionMoveMode(false);
   }
 
   function executeSectionMoveHere(targetId: string | "top") {
@@ -223,6 +230,7 @@ export default function WorkDetailScreen({
       return next;
     });
     setItemMoveTargetIdx(null);
+    setShowItemMoveMode(false);
   }
 
   function executeItemMoveHere(sectionId: string, displayItems: string[], targetIdx: number | "top") {
@@ -257,7 +265,7 @@ export default function WorkDetailScreen({
     });
     onReorderItems(sectionId, newItems, newStatuses);
     setItemMoveTargetIdx(null);
-    setSelectedItemIdxs(new Set());
+    // 選択・モードはリセットしない（移動後も継続操作できるように）
   }
 
   // ---- セクションドラッグ（ロック中でない通常モードのみ） ----
@@ -339,7 +347,7 @@ export default function WorkDetailScreen({
     });
   }, [work.sections, textSearch, sectionSortOrder, statusFilter]);
 
-  const showSectionMoveButton = sectionSelectMode && selectedSectionIds.size > 0;
+  const showSectionMoveButton = showSectionMoveMode && selectedSectionIds.size > 0;
 
   return (
     <div
@@ -447,13 +455,6 @@ export default function WorkDetailScreen({
               </button>
             </div>
           </div>
-          {sectionSelectMode && (
-            <p className="text-xs text-[#787c99] text-center pt-2">
-              {selectedSectionIds.size > 0
-                ? `${selectedSectionIds.size}件選択中 — 移動先の「ここに移動」をタップ`
-                : "タップして選択、もう一度タップで解除"}
-            </p>
-          )}
         </div>
       </header>
 
@@ -542,7 +543,7 @@ export default function WorkDetailScreen({
 
               // このセクションがアイテム選択モードかどうか
               const isThisSectionItemSelect = itemSelectMode === section.id;
-              const showItemMoveButton = isThisSectionItemSelect && selectedItemIdxs.size > 0;
+              const showItemMoveButton = showItemMoveMode && isThisSectionItemSelect && selectedItemIdxs.size > 0;
 
               return (
                 <div key={section.id}>
@@ -625,16 +626,19 @@ export default function WorkDetailScreen({
                                 const itemIsReverse = (section.sortOrder ?? "default") === "reverse";
                                 const itemSelectDisabled = !isThisSectionItemSelect && itemIsReverse;
                                 return (
+                                  <>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (itemSelectDisabled) return;
                                       if (isThisSectionItemSelect) {
                                         setItemSelectMode(null);
+                                        setShowItemMoveMode(false);
                                       } else {
                                         setItemSelectMode(section.id);
                                         setSelectedItemIdxs(new Set());
                                         setItemMoveTargetIdx(null);
+                                        setShowItemMoveMode(false);
                                       }
                                     }}
                                     className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
@@ -649,6 +653,22 @@ export default function WorkDetailScreen({
                                       : <CheckSquare size={14} />
                                     }
                                   </button>
+                                  {/* 項目選択中の「移動」ボタン */}
+                                  {isThisSectionItemSelect && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setShowItemMoveMode((v) => !v); setItemMoveTargetIdx(null); }}
+                                      disabled={selectedItemIdxs.size === 0}
+                                      className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
+                                      style={showItemMoveMode
+                                        ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                                        : selectedItemIdxs.size === 0
+                                          ? { backgroundColor: "transparent", borderColor: "transparent", color: "#3b4261" }
+                                          : { backgroundColor: "transparent", borderColor: "transparent", color: "#787c99" }
+                                      }
+                                      title="移動"
+                                    ><ArrowDownToLine size={14} /></button>
+                                  )}
+                                  </>
                                 );
                               })()}
                               {/* 項目並び順ボタン（選択モード中は非表示） */}
@@ -731,8 +751,12 @@ export default function WorkDetailScreen({
                                 style={
                                   isThisSectionItemSelect
                                     ? isItemChecked
-                                      ? { backgroundColor: "#7aa2f722", color: "#c0caf5", borderColor: "#7aa2f7" }
-                                      : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
+                                      ? isRead
+                                        ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: "#1a1b26", outline: "2px solid #1a1b2666" }
+                                        : { backgroundColor: "#7aa2f722", color: "#c0caf5", borderColor: "#7aa2f7" }
+                                      : isRead
+                                        ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
+                                        : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
                                     : isRead
                                       ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
                                       : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
@@ -740,7 +764,7 @@ export default function WorkDetailScreen({
                               >
                                 <div className="flex items-center gap-2">
                                   {isThisSectionItemSelect && (
-                                    <span className="shrink-0" style={{ color: isItemChecked ? "#7aa2f7" : "#4a5177" }}>
+                                    <span className="shrink-0" style={{ color: isItemChecked ? (isRead ? "#1a1b26" : "#7aa2f7") : isRead ? "#1a1b2699" : "#4a5177" }}>
                                       {isItemChecked ? <CheckSquare size={16} /> : <Square size={16} />}
                                     </span>
                                   )}
@@ -800,6 +824,25 @@ export default function WorkDetailScreen({
           </div>
         )}
       </main>
+
+      {/* セクション選択モード フッター */}
+      {!locked && sectionSelectMode && (
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
+          <div className="max-w-lg mx-auto flex gap-2">
+            <button
+              onClick={() => { setShowSectionMoveMode((v) => !v); setSectionMoveTargetId(null); }}
+              disabled={selectedSectionIds.size === 0}
+              className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+              style={showSectionMoveMode
+                ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                : selectedSectionIds.size === 0
+                  ? { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#3b4261" }
+                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#a9b1d6" }
+              }
+            ><ArrowDownToLine size={16} /> 移動</button>
+          </div>
+        </div>
+      )}
 
       {showWorkEdit && <WorkModal mode="edit" initial={work} onClose={() => setShowWorkEdit(false)} onSave={(data) => { onEditWork(data); setShowWorkEdit(false); }} />}
       {sectionModal?.mode === "add" && (

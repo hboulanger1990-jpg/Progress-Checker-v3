@@ -58,6 +58,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   const [moveTargetId, setMoveTargetId] = useState<string | "top" | null>(null);
   const [showTagAction, setShowTagAction] = useState(false);
   const [tagActionInput, setTagActionInput] = useState("");
+  const [showMoveMode, setShowMoveMode] = useState(false);
 
   // 並び順
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => folder.works[0]?.sortOrder ?? "default");
@@ -96,6 +97,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     if (!selectMode) {
       setMoveTargetId(null);
       setShowTagAction(false);
+      setShowMoveMode(false);
     }
   }, [selectMode]);
 
@@ -161,8 +163,9 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-    // 選択変更時はmoveTargetをリセット
+    // 選択変更時はmoveTargetとshowMoveModeをリセット
     setMoveTargetId(null);
+    setShowMoveMode(false);
   }
 
   // 「ここに移動」実行: selectedIdsのアイテムをtargetIdの後ろに挿入
@@ -239,8 +242,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     onSetSortOrder(order);
   }
 
-  // 「ここに移動」ボタンの表示条件: selectMode && selectedIds.size > 0 && アイテムが選択されていない場所
-  const showMoveButton = selectMode && selectedIds.size > 0;
+  // 「ここに移動」ボタンの表示条件: showMoveModeがtrueのとき
+  const showMoveButton = showMoveMode && selectedIds.size > 0;
 
   // 完了タイプのタイトルクラス
   const readTitleClass = itemSize === "1"
@@ -368,9 +371,9 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             </div>
           </div>
 
-          {/* 進捗タイプ: 常時表示の検索バー */}
-          {!isReadMode && !selectMode && (
-            <>
+          {/* 進捗タイプ: 常時表示の検索バー（選択モード中は不可視で領域確保） */}
+          {!isReadMode && (
+            <div style={selectMode ? { visibility: "hidden" } : {}}>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="作品を検索..."
@@ -391,27 +394,20 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                   })}
                 </div>
               )}
-            </>
+            </div>
           )}
 
-          {selectMode && (
-            <p className="text-xs text-[#787c99] text-center py-1">
-              {selectedIds.size > 0
-                ? `${selectedIds.size}件選択中 — 移動先の「ここに移動」をタップ`
-                : "タップして選択、もう一度タップで解除"}
-            </p>
-          )}
         </div>
       </header>
 
       <main className="flex-1 px-4 py-3 max-w-lg mx-auto w-full pb-32">
-        {/* 完了タイプ: ゲージ（スクロールで消える） */}
-        {isReadMode && !selectMode && (() => {
+        {/* 完了タイプ: ゲージ（スクロールで消える、選択モード中は不可視で領域確保） */}
+        {isReadMode && (() => {
           const totalWorks = folder.works.length;
           const completedWorks = folder.works.filter((w) => w.completed).length;
           const pct = totalWorks === 0 ? 0 : Math.round((completedWorks / totalWorks) * 100);
           return (
-            <div className="mb-3">
+            <div className="mb-3" style={selectMode ? { visibility: "hidden" } : {}}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-[#787c99]">完了 {completedWorks} / {totalWorks}</span>
                 <span className="text-xs font-bold" style={{ color: folderHex }}>{pct}%</span>
@@ -424,8 +420,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
         })()}
 
         {/* 完了タイプ: 検索バー・タグ（ゲージの下） */}
-        {isReadMode && !selectMode && (
-          <>
+        {isReadMode && (
+          <div style={selectMode ? { visibility: "hidden" } : {}}>
             {showSearch && (
               <div className="relative mb-2">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
@@ -452,7 +448,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 })}
               </div>
             )}
-          </>
+          </div>
         )}
         {sortedFiltered.length === 0 ? (
           <div className="mt-20 text-center space-y-2">
@@ -493,11 +489,11 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
                     className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
-                    style={{ backgroundColor: done ? hex : "#24283b", borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? hex : "#3b4261", outline: isChecked ? "2px solid #7aa2f744" : "none" }}
+                    style={{ backgroundColor: done ? hex : "#24283b", borderColor: isChecked ? (done ? "#1a1b26" : "#7aa2f7") : isSelected ? "#7aa2f7" : done ? hex : "#3b4261", outline: isChecked ? (done ? "2px solid #1a1b2666" : "2px solid #7aa2f744") : "none" }}
                   >
                     <div className="flex items-start gap-2">
                       {selectMode && (
-                        <span className="shrink-0 mt-0.5" style={{ color: isChecked ? "#7aa2f7" : "#4a5177" }}>
+                        <span className="shrink-0 mt-0.5" style={{ color: isChecked ? (done ? "#1a1b26" : "#7aa2f7") : done ? `${hex}88` : "#4a5177" }}>
                           {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                         </span>
                       )}
@@ -684,6 +680,14 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             ) : (
               <div className="flex gap-2">
                 <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center gap-2"><Tag size={16} /> 選択中の操作</button>
+                <button
+                  onClick={() => { setShowMoveMode((v) => !v); setMoveTargetId(null); }}
+                  className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  style={showMoveMode
+                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
+                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#a9b1d6" }
+                  }
+                ><ArrowDownToLine size={16} /> 移動</button>
               </div>
             )}
           </div>

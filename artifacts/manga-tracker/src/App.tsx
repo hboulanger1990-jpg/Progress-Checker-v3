@@ -128,7 +128,7 @@ export default function App() {
     mutate((prev) => [f, ...prev]);
   }
   function editFolder(id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") {
-    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, itemSize, updatedAt: Date.now() } : f).sort((a, b) => b.updatedAt - a.updatedAt));
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, itemSize, updatedAt: Date.now() } : f));
   }
   function deleteFolder(id: string) {
     mutate((prev) => prev.filter((f) => f.id !== id));

@@ -1,5 +1,5 @@
 import { Settings, Trash2, Search, ArrowLeft, X, Plus, GripVertical, Grid2x2Check, LockKeyhole, LockKeyholeOpen, SlidersHorizontal, Check, CheckSquare, Square, ArrowDownToLine } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type RefObject } from "react";
 import type { Folder, Work, Section, SortOrder } from "../types";
 import { ACCENT_COLORS } from "../types";
 import { calcWorkProgress, calcSectionProgress } from "../storage";
@@ -66,7 +66,10 @@ export default function WorkDetailScreen({
   const [itemMoveTargetIdx, setItemMoveTargetIdx] = useState<number | "top" | null>(null);
   const [showItemMoveMode, setShowItemMoveMode] = useState(false);
 
-  // セクションドラッグ（通常モード）
+  // インライン項目追加
+  const [inlineAdd, setInlineAdd] = useState<{ sectionId: string; position: "top" | "bottom" } | null>(null);
+  const [inlineAddText, setInlineAddText] = useState("");
+  const inlineAddRef = useRef<HTMLTextAreaElement>(null);
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
   const [dragOverSectionIdx, setDragOverSectionIdx] = useState<number | null>(null);
 
@@ -136,6 +139,25 @@ export default function WorkDetailScreen({
       setShowItemMoveMode(false);
     }
   }, [itemSelectMode]);
+
+  function commitInlineAdd(sectionId: string, position: "top" | "bottom", text: string) {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== "");
+    if (lines.length === 0) { setInlineAdd(null); setInlineAddText(""); return; }
+    const section = work.sections.find((s) => s.id === sectionId);
+    if (!section) return;
+    const existing = section.items ?? [];
+    const newItems = position === "top" ? [...lines, ...existing] : [...existing, ...lines];
+    const newStatuses: Section["statuses"] = {};
+    newItems.forEach((item, newIdx) => {
+      const origIdx = existing.indexOf(item);
+      if (origIdx !== -1 && section.statuses[section.startNum + origIdx]) {
+        newStatuses[section.startNum + newIdx] = "read";
+      }
+    });
+    onEditSection(sectionId, { items: newItems, startNum: 1, endNum: newItems.length });
+    setInlineAdd(null);
+    setInlineAddText("");
+  }
 
   function handleTouchStart(e: React.TouchEvent) { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
   function handleTouchEnd(e: React.TouchEvent) {
@@ -265,7 +287,13 @@ export default function WorkDetailScreen({
     });
     onReorderItems(sectionId, newItems, newStatuses);
     setItemMoveTargetIdx(null);
-    // 選択・モードはリセットしない（移動後も継続操作できるように）
+    // 移動後、選択済みアイテムの新しいインデックスに更新
+    const newSelectedIdxs = new Set<number>();
+    selected.forEach((item) => {
+      const newIdx = newItems.indexOf(item);
+      if (newIdx !== -1) newSelectedIdxs.add(newIdx);
+    });
+    setSelectedItemIdxs(newSelectedIdxs);
   }
 
   // ---- セクションドラッグ（ロック中でない通常モードのみ） ----
@@ -720,6 +748,25 @@ export default function WorkDetailScreen({
                       </button>
                     ) : section.mode === "text" && section.items ? (
                       <div className="space-y-1.5">
+                        {/* 先頭インライン追加 */}
+                        {!locked && !sectionSelectMode && (
+                          inlineAdd?.sectionId === section.id && inlineAdd.position === "top" && !isThisSectionItemSelect ? (
+                            <InlineAddInput
+                              accentHex={accentHex}
+                              inputRef={inlineAdd.sectionId === section.id ? inlineAddRef : undefined}
+                              value={inlineAddText}
+                              onChange={setInlineAddText}
+                              onCommit={() => commitInlineAdd(section.id, "top", inlineAddText)}
+                              onCancel={() => { setInlineAdd(null); setInlineAddText(""); }}
+                            />
+                          ) : (
+                            <button
+                              onClick={() => { if (isThisSectionItemSelect) return; setInlineAdd({ sectionId: section.id, position: "top" }); setInlineAddText(""); setTimeout(() => inlineAddRef.current?.focus(), 30); }}
+                              className="w-full py-0.5 rounded border border-dashed flex items-center justify-center"
+                              style={{ borderColor: "#2a2d3e", color: "#4a5177", visibility: isThisSectionItemSelect ? "hidden" : "visible" }}
+                            ><Plus size={14} /></button>
+                          )
+                        )}
                         {/* 項目先頭への「ここに移動」 */}
                         {showItemMoveButton && (
                           <ItemMoveHereButton
@@ -783,6 +830,25 @@ export default function WorkDetailScreen({
                             </div>
                           );
                         })}
+                        {/* 末尾インライン追加 */}
+                        {!locked && !sectionSelectMode && (
+                          inlineAdd?.sectionId === section.id && inlineAdd.position === "bottom" && !isThisSectionItemSelect ? (
+                            <InlineAddInput
+                              accentHex={accentHex}
+                              inputRef={inlineAdd.sectionId === section.id ? inlineAddRef : undefined}
+                              value={inlineAddText}
+                              onChange={setInlineAddText}
+                              onCommit={() => commitInlineAdd(section.id, "bottom", inlineAddText)}
+                              onCancel={() => { setInlineAdd(null); setInlineAddText(""); }}
+                            />
+                          ) : (
+                            <button
+                              onClick={() => { if (isThisSectionItemSelect) return; setInlineAdd({ sectionId: section.id, position: "bottom" }); setInlineAddText(""); setTimeout(() => inlineAddRef.current?.focus(), 30); }}
+                              className="w-full py-0.5 rounded border border-dashed flex items-center justify-center"
+                              style={{ borderColor: "#2a2d3e", color: "#4a5177", visibility: isThisSectionItemSelect ? "hidden" : "visible" }}
+                            ><Plus size={14} /></button>
+                          )
+                        )}
                       </div>
                     ) : (
                       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
@@ -857,6 +923,37 @@ export default function WorkDetailScreen({
           onSave={(label, startNum, endNum, sectionMode, items) => { onEditSection(sectionModal.section.id, { label, startNum, endNum, mode: sectionMode, items }); setSectionModal(null); }}
         />
       )}
+    </div>
+  );
+}
+
+function InlineAddInput({ accentHex, inputRef, value, onChange, onCommit, onCancel }: {
+  accentHex: string;
+  inputRef?: React.RefObject<HTMLTextAreaElement>;
+  value: string;
+  onChange: (v: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex gap-2 items-start">
+      <textarea
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onCommit(); }
+          if (e.key === "Escape") onCancel();
+        }}
+        placeholder={"項目を入力（複数行可、Shift+Enterで改行）"}
+        rows={2}
+        className="flex-1 bg-[#24283b] text-[#c0caf5] border rounded-xl px-3 py-2 text-sm outline-none transition-colors placeholder-[#4a5177] resize-none"
+        style={{ borderColor: accentHex }}
+      />
+      <div className="flex flex-col gap-1 shrink-0">
+        <button onClick={onCommit} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#1a1b26] active:scale-95 transition-transform text-xs font-bold" style={{ backgroundColor: accentHex }}>✓</button>
+        <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#3b4261] text-[#787c99] active:scale-95 transition-transform text-xs">✕</button>
+      </div>
     </div>
   );
 }

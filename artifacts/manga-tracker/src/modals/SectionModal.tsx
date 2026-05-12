@@ -202,9 +202,9 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
 
               <button
                 onClick={() => insertItem(0)}
-                className="w-full mb-1.5 py-1 rounded-lg border border-dashed border-[#3b4261] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
+                className="w-full mb-1.5 py-0.5 rounded border border-dashed border-[#2a2d3e] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
               >
-                <Plus size={20} />先頭に追加
+                <Plus size={20} />
               </button>
 
               <div className="space-y-1.5">
@@ -238,6 +238,22 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
           )}
 
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
+
+          {/* 下部ボタン（このモーダルのみ上下両方に配置） */}
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+            >
+              戻る
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex-1 py-2.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+            >
+              {mode === "add" ? "追加" : "保存"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -379,19 +379,19 @@ export default function WorkDetailScreen({
 
   return (
     <div
-      className="min-h-screen bg-[#1a1b26] flex flex-col"
+      className="min-h-screen flex flex-col"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onClick={() => { setShowSectionSortMenu(false); setShowItemSortMenu(null); }}
     >
-      <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 py-3">
+      <header className="sticky top-0 z-10 bg-[var(--bg-base)]/95 backdrop-blur-md border-b border-[var(--border-dim)] px-4 py-3">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2" style={{ color: folderHex }}>
               <ArrowLeft size={20} /><span>戻る</span>
             </button>
             <div className="flex-1 min-w-0">
-              <h1 className="font-bold text-[#c0caf5] text-base leading-tight truncate">{work.title}</h1>
+              <h1 className="font-bold text-[var(--text-primary)] text-base leading-tight truncate">{work.title}</h1>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {/* ロックボタン */}
@@ -399,7 +399,7 @@ export default function WorkDetailScreen({
                 className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                 style={locked
                   ? { backgroundColor: "#f7768e22", borderColor: "#f7768e", color: "#f7768e" }
-                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                  : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
                 }
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
@@ -421,8 +421,8 @@ export default function WorkDetailScreen({
                   }}
                   className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
                   style={sectionSelectMode
-                    ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
+                    ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
+                    : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--border)" : "var(--text-muted)" }
                   }
                   title={sectionSelectMode ? "完了" : locked ? "ロック中" : "セクション並び替え"}
                 >
@@ -440,19 +440,19 @@ export default function WorkDetailScreen({
                     onClick={(e) => { e.stopPropagation(); if (!locked) setShowSectionSortMenu((v) => !v); }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                     style={showSectionSortMenu
-                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
                       : sectionSortOrder !== "default"
                         ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
-                        : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
+                        : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--border)" : "var(--text-muted)" }
                     }
                     title="セクション並び順"
                   ><SlidersHorizontal size={16} /></button>
                   {showSectionSortMenu && (
-                    <div className="absolute right-0 top-10 z-30 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-2xl overflow-hidden min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute right-0 top-10 z-30 bg-[var(--bg-overlay)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden min-w-[140px]" onClick={(e) => e.stopPropagation()}>
                       {SECTION_SORT_OPTIONS.map((opt) => (
                         <button key={opt.value} onClick={() => handleSectionSortChange(opt.value)}
                           className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
-                          style={{ color: sectionSortOrder === opt.value ? accentHex : "#a9b1d6", backgroundColor: sectionSortOrder === opt.value ? `${accentHex}11` : "transparent" }}
+                          style={{ color: sectionSortOrder === opt.value ? accentHex : "var(--text-sub)", backgroundColor: sectionSortOrder === opt.value ? `${accentHex}11` : "transparent" }}
                         >{opt.label}{sectionSortOrder === opt.value && <Check size={14} />}</button>
                       ))}
                     </div>
@@ -464,10 +464,10 @@ export default function WorkDetailScreen({
               {hasTextSections && (
                 <button
                   onClick={() => { if (!sectionSelectMode) setShowTextSearch((v) => !v); }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border active:scale-95 transition-transform"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-surface)] border active:scale-95 transition-transform"
                   style={sectionSelectMode
-                    ? { color: "#3b4261", borderColor: "#3b4261" }
-                    : { color: showTextSearch ? accentHex : "#787c99", borderColor: showTextSearch ? accentHex : "#3b4261" }
+                    ? { color: "var(--border)", borderColor: "var(--border)" }
+                    : { color: showTextSearch ? accentHex : "var(--text-muted)", borderColor: showTextSearch ? accentHex : "var(--border)" }
                   }
                 ><Search size={20} /></button>
               )}
@@ -475,8 +475,8 @@ export default function WorkDetailScreen({
               {/* 設定ボタン（常時表示、ロック中・選択モード中は薄く） */}
               <button
                 onClick={() => { if (!locked && !sectionSelectMode) setShowWorkEdit(true); }}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform"
-                style={{ color: locked || sectionSelectMode ? "#3b4261" : "#787c99" }}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] active:scale-95 transition-transform"
+                style={{ color: locked || sectionSelectMode ? "var(--border)" : "var(--text-muted)" }}
                 title={locked ? "ロック中" : sectionSelectMode ? "選択モード中" : "設定"}
               >
                 <Settings size={16} />
@@ -488,25 +488,25 @@ export default function WorkDetailScreen({
 
       <div className="px-4 pt-3 pb-2 max-w-lg mx-auto w-full">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-[#787c99]">
+          <span className="text-xs text-[var(--text-muted)]">
             <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: accentHex }} />
             {work.labelRead} {read} / {total}{work.unit}
           </span>
           <span className="text-xs font-bold" style={{ color: accentHex }}>{percent}%</span>
         </div>
-        <div className="h-1 bg-[#24283b] rounded-full overflow-hidden mb-2">
+        <div className="h-1 bg-[var(--bg-surface)] rounded-full overflow-hidden mb-2">
           <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: accentHex }} />
         </div>
-        <div className="flex gap-3 text-xs text-[#787c99]">
+        <div className="flex gap-3 text-xs text-[var(--text-muted)]">
           <button
             onClick={() => { if (!locked) setStatusFilter((v) => v === "unread" ? null : "unread"); }}
             className="flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all active:scale-95"
             style={statusFilter === "unread"
-              ? { backgroundColor: "#24283b", borderColor: "#787c99", color: "#c0caf5" }
-              : { backgroundColor: "transparent", borderColor: "transparent", color: locked ? "#3b4261" : "#787c99" }
+              ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--text-muted)", color: "var(--text-primary)" }
+              : { backgroundColor: "transparent", borderColor: "transparent", color: locked ? "var(--border)" : "var(--text-muted)" }
             }
           >
-            <span className="inline-block w-3.5 h-3.5 rounded border border-[#3b4261] bg-[#24283b] shrink-0" />
+            <span className="inline-block w-3.5 h-3.5 rounded border border-[var(--border)] bg-[var(--bg-surface)] shrink-0" />
             {work.labelUnread}
           </button>
           <button
@@ -514,7 +514,7 @@ export default function WorkDetailScreen({
             className="flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all active:scale-95"
             style={statusFilter === "read"
               ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
-              : { backgroundColor: "transparent", borderColor: "transparent", color: locked ? "#3b4261" : "#787c99" }
+              : { backgroundColor: "transparent", borderColor: "transparent", color: locked ? "var(--border)" : "var(--text-muted)" }
             }
           >
             <span className="inline-block w-3.5 h-3.5 rounded shrink-0" style={{ backgroundColor: accentHex }} />
@@ -527,11 +527,11 @@ export default function WorkDetailScreen({
       {hasTextSections && showTextSearch && (
         <div className="px-4 mb-2 max-w-lg mx-auto w-full">
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"><Search size={20} /></span>
             <input value={textSearch} onChange={(e) => setTextSearch(e.target.value)} placeholder="テキスト項目を検索..."
-              className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-8 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
+              className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl pl-9 pr-8 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[var(--text-dim)]"
             />
-            {textSearch && <button onClick={() => setTextSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>}
+            {textSearch && <button onClick={() => setTextSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"><X size={20} /></button>}
           </div>
         </div>
       )}
@@ -540,9 +540,9 @@ export default function WorkDetailScreen({
         {work.sections.length === 0 ? (
           <div className="mt-12 text-center space-y-2 flex flex-col items-center">
             <div className="flex justify-center"><Grid2x2Check size={40} /></div>
-            <p className="text-[#787c99] text-sm">{secLabel}がありません</p>
+            <p className="text-[var(--text-muted)] text-sm">{secLabel}がありません</p>
             {!locked && (
-              <button onClick={() => setSectionModal({ mode: "add" })} className="mt-2 px-6 py-2.5 rounded-xl text-sm font-bold text-[#1a1b26] active:scale-95 transition-transform flex items-center justify-center gap-1" style={{ backgroundColor: accentHex }}>
+              <button onClick={() => setSectionModal({ mode: "add" })} className="mt-2 px-6 py-2.5 rounded-xl text-sm font-bold text-[var(--bg-base)] active:scale-95 transition-transform flex items-center justify-center gap-1" style={{ backgroundColor: accentHex }}>
                 <Plus size={20} /> {secLabel}を追加
               </button>
             )}
@@ -583,13 +583,13 @@ export default function WorkDetailScreen({
                           <button
                             className="shrink-0 w-7 h-7 flex items-center justify-center"
                             onClick={() => toggleSectionSelect(section.id)}
-                            style={{ color: isSectionChecked ? "#7aa2f7" : "#4a5177" }}
+                            style={{ color: isSectionChecked ? "#7aa2f7" : "var(--text-dim)" }}
                           >
                             {isSectionChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                           </button>
                         ) : !locked && work.sections.length > 1 ? (
                           <button
-                            className="shrink-0 w-7 h-7 flex items-center justify-center text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none"
+                            className="shrink-0 w-7 h-7 flex items-center justify-center text-[var(--text-dim)] cursor-grab active:cursor-grabbing touch-none select-none"
                             onTouchStart={(e) => { e.stopPropagation(); startSectionDrag(section.id); }}
                             onMouseDown={(e) => {
                               e.stopPropagation();
@@ -633,8 +633,8 @@ export default function WorkDetailScreen({
                         ) : null}
 
                         <div className="min-w-0">
-                          <span className="font-bold text-[#c0caf5] text-sm">{section.label}</span>
-                          <span className="text-xs text-[#787c99] ml-2">
+                          <span className="font-bold text-[var(--text-primary)] text-sm">{section.label}</span>
+                          <span className="text-xs text-[var(--text-muted)] ml-2">
                             {section.mode === "text"
                               ? `${sTotal}${work.unit || "項目"} · ${work.labelRead} ${sRead}/${sTotal}`
                               : `${section.startNum}〜${section.endNum}${work.unit} · ${work.labelRead} ${sRead}/${sTotal}${work.unit}`
@@ -671,8 +671,8 @@ export default function WorkDetailScreen({
                                     }}
                                     className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
                                     style={isThisSectionItemSelect
-                                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
-                                      : { backgroundColor: "transparent", borderColor: "transparent", color: itemSelectDisabled ? "#3b4261" : "#787c99" }
+                                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
+                                      : { backgroundColor: "transparent", borderColor: "transparent", color: itemSelectDisabled ? "var(--border)" : "var(--text-muted)" }
                                     }
                                     title={isThisSectionItemSelect ? "完了" : itemIsReverse ? "逆順中は並び替え不可" : "項目並び替え"}
                                   >
@@ -688,10 +688,10 @@ export default function WorkDetailScreen({
                                       disabled={selectedItemIdxs.size === 0}
                                       className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
                                       style={showItemMoveMode
-                                        ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                                        ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
                                         : selectedItemIdxs.size === 0
-                                          ? { backgroundColor: "transparent", borderColor: "transparent", color: "#3b4261" }
-                                          : { backgroundColor: "transparent", borderColor: "transparent", color: "#787c99" }
+                                          ? { backgroundColor: "transparent", borderColor: "transparent", color: "var(--border)" }
+                                          : { backgroundColor: "transparent", borderColor: "transparent", color: "var(--text-muted)" }
                                       }
                                       title="移動"
                                     ><ArrowDownToLine size={14} /></button>
@@ -706,19 +706,19 @@ export default function WorkDetailScreen({
                                     onClick={(e) => { e.stopPropagation(); setShowItemSortMenu((v) => v === section.id ? null : section.id); }}
                                     className="w-7 h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                                     style={showItemSortMenu === section.id
-                                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
                                       : itemSortOrder !== "default"
                                         ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
-                                        : { backgroundColor: "transparent", borderColor: "transparent", color: "#787c99" }
+                                        : { backgroundColor: "transparent", borderColor: "transparent", color: "var(--text-muted)" }
                                     }
                                     title="項目の並び順"
                                   ><SlidersHorizontal size={14} /></button>
                                   {showItemSortMenu === section.id && (
-                                    <div className="absolute right-0 top-8 z-30 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-2xl overflow-hidden min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                                    <div className="absolute right-0 top-8 z-30 bg-[var(--bg-overlay)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden min-w-[140px]" onClick={(e) => e.stopPropagation()}>
                                       {ITEM_SORT_OPTIONS.map((opt) => (
                                         <button key={opt.value} onClick={() => handleItemSortChange(section.id, opt.value)}
                                           className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
-                                          style={{ color: itemSortOrder === opt.value ? accentHex : "#a9b1d6", backgroundColor: itemSortOrder === opt.value ? `${accentHex}11` : "transparent" }}
+                                          style={{ color: itemSortOrder === opt.value ? accentHex : "var(--text-sub)", backgroundColor: itemSortOrder === opt.value ? `${accentHex}11` : "transparent" }}
                                         >{opt.label}{itemSortOrder === opt.value && <Check size={14} />}</button>
                                       ))}
                                     </div>
@@ -729,7 +729,7 @@ export default function WorkDetailScreen({
                           )}
                           {!locked && (
                             <>
-                              <button onClick={() => setSectionModal({ mode: "edit", section })} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#787c99] active:scale-95 transition-transform"><Settings size={16} /></button>
+                              <button onClick={() => setSectionModal({ mode: "edit", section })} className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] active:scale-95 transition-transform"><Settings size={16} /></button>
                               <button onClick={() => handleDeleteSection(section)} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#f7768e] active:scale-95 transition-transform"><Trash2 size={16} /></button>
                             </>
                           )}
@@ -741,10 +741,10 @@ export default function WorkDetailScreen({
                     {sectionSelectMode ? (
                       <button
                         className="w-full text-left px-3 py-2 rounded-xl border transition-all active:scale-[0.98]"
-                        style={{ borderColor: isSectionChecked ? "#7aa2f7" : "#3b4261", backgroundColor: isSectionChecked ? "#7aa2f711" : "#24283b" }}
+                        style={{ borderColor: isSectionChecked ? "#7aa2f7" : "var(--border)", backgroundColor: isSectionChecked ? "#7aa2f711" : "var(--bg-surface)" }}
                         onClick={() => toggleSectionSelect(section.id)}
                       >
-                        <span className="text-xs text-[#787c99]">{section.mode === "text" ? `${sTotal}項目` : `${section.startNum}〜${section.endNum}${work.unit}`}</span>
+                        <span className="text-xs text-[var(--text-muted)]">{section.mode === "text" ? `${sTotal}項目` : `${section.startNum}〜${section.endNum}${work.unit}`}</span>
                       </button>
                     ) : section.mode === "text" && section.items ? (
                       <div className="space-y-1.5">
@@ -763,7 +763,7 @@ export default function WorkDetailScreen({
                             <button
                               onClick={() => { if (isThisSectionItemSelect) return; setInlineAdd({ sectionId: section.id, position: "top" }); setInlineAddText(""); setTimeout(() => inlineAddRef.current?.focus(), 30); }}
                               className="w-full py-0.5 rounded border border-dashed flex items-center justify-center"
-                              style={{ borderColor: "#2a2d3e", color: "#4a5177", visibility: isThisSectionItemSelect ? "hidden" : "visible" }}
+                              style={{ borderColor: "var(--border-dim)", color: "var(--text-dim)", visibility: isThisSectionItemSelect ? "hidden" : "visible" }}
                             ><Plus size={14} /></button>
                           )
                         )}
@@ -799,19 +799,19 @@ export default function WorkDetailScreen({
                                   isThisSectionItemSelect
                                     ? isItemChecked
                                       ? isRead
-                                        ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: "#1a1b26", outline: "2px solid #1a1b2666" }
-                                        : { backgroundColor: "#7aa2f722", color: "#c0caf5", borderColor: "#7aa2f7" }
+                                        ? { backgroundColor: accentHex, color: "var(--bg-base)", borderColor: "var(--bg-base)", outline: "2px solid var(--bg-base)66" }
+                                        : { backgroundColor: "#7aa2f722", color: "var(--text-primary)", borderColor: "#7aa2f7" }
                                       : isRead
-                                        ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
-                                        : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
+                                        ? { backgroundColor: accentHex, color: "var(--bg-base)", borderColor: accentHex }
+                                        : { backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", borderColor: "var(--border)" }
                                     : isRead
-                                      ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
-                                      : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
+                                      ? { backgroundColor: accentHex, color: "var(--bg-base)", borderColor: accentHex }
+                                      : { backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", borderColor: "var(--border)" }
                                 }
                               >
                                 <div className="flex items-center gap-2">
                                   {isThisSectionItemSelect && (
-                                    <span className="shrink-0" style={{ color: isItemChecked ? (isRead ? "#1a1b26" : "#7aa2f7") : isRead ? "#1a1b2699" : "#4a5177" }}>
+                                    <span className="shrink-0" style={{ color: isItemChecked ? (isRead ? "var(--text-on-accent)" : "#7aa2f7") : isRead ? "var(--text-on-accent)99" : "var(--text-dim)" }}>
                                       {isItemChecked ? <CheckSquare size={16} /> : <Square size={16} />}
                                     </span>
                                   )}
@@ -845,7 +845,7 @@ export default function WorkDetailScreen({
                             <button
                               onClick={() => { if (isThisSectionItemSelect) return; setInlineAdd({ sectionId: section.id, position: "bottom" }); setInlineAddText(""); setTimeout(() => inlineAddRef.current?.focus(), 30); }}
                               className="w-full py-0.5 rounded border border-dashed flex items-center justify-center"
-                              style={{ borderColor: "#2a2d3e", color: "#4a5177", visibility: isThisSectionItemSelect ? "hidden" : "visible" }}
+                              style={{ borderColor: "var(--border-dim)", color: "var(--text-dim)", visibility: isThisSectionItemSelect ? "hidden" : "visible" }}
                             ><Plus size={14} /></button>
                           )
                         )}
@@ -860,7 +860,7 @@ export default function WorkDetailScreen({
                             <button key={num} id={`item-${section.id}-${num}`}
                               onClick={() => handleToggle(section.id, num)}
                               className={`border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation transition-all duration-100 ${locked ? "" : "active:scale-90"}`}
-                              style={isRead ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex } : { backgroundColor: "#24283b", color: locked ? "#3b4261" : "#4a5177", borderColor: "#3b4261" }}
+                              style={isRead ? { backgroundColor: accentHex, color: "var(--bg-base)", borderColor: accentHex } : { backgroundColor: "var(--bg-surface)", color: locked ? "var(--border)" : "var(--text-dim)", borderColor: "var(--border)" }}
                             >{num}</button>
                           );
                         })}
@@ -883,7 +883,7 @@ export default function WorkDetailScreen({
               );
             })}
             {!locked && !sectionSelectMode && (
-              <button onClick={() => setSectionModal({ mode: "add" })} className="w-full py-3 rounded-xl border border-dashed border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+              <button onClick={() => setSectionModal({ mode: "add" })} className="w-full py-3 rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5">
                 <Plus size={20} /><span>{secLabel}を追加</span>
               </button>
             )}
@@ -893,17 +893,17 @@ export default function WorkDetailScreen({
 
       {/* セクション選択モード フッター */}
       {!locked && sectionSelectMode && (
-        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/90 to-transparent">
           <div className="max-w-lg mx-auto flex gap-2">
             <button
               onClick={() => { setShowSectionMoveMode((v) => !v); setSectionMoveTargetId(null); }}
               disabled={selectedSectionIds.size === 0}
               className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
               style={showSectionMoveMode
-                ? { backgroundColor: accentHex, borderColor: accentHex, color: "#1a1b26" }
+                ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
                 : selectedSectionIds.size === 0
-                  ? { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#3b4261" }
-                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#a9b1d6" }
+                  ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
+                  : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-sub)" }
               }
             ><ArrowDownToLine size={16} /> 移動</button>
           </div>
@@ -947,12 +947,12 @@ function InlineAddInput({ accentHex, inputRef, value, onChange, onCommit, onCanc
         }}
         placeholder={"項目を入力（複数行可、Shift+Enterで改行）"}
         rows={2}
-        className="flex-1 bg-[#24283b] text-[#c0caf5] border rounded-xl px-3 py-2 text-sm outline-none transition-colors placeholder-[#4a5177] resize-none"
+        className="flex-1 bg-[var(--bg-surface)] text-[var(--text-primary)] border rounded-xl px-3 py-2 text-sm outline-none transition-colors placeholder-[var(--text-dim)] resize-none"
         style={{ borderColor: accentHex }}
       />
       <div className="flex flex-col gap-1 shrink-0">
-        <button onClick={onCommit} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#1a1b26] active:scale-95 transition-transform text-xs font-bold" style={{ backgroundColor: accentHex }}>✓</button>
-        <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#3b4261] text-[#787c99] active:scale-95 transition-transform text-xs">✕</button>
+        <button onClick={onCommit} className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--bg-base)] active:scale-95 transition-transform text-xs font-bold" style={{ backgroundColor: accentHex }}>✓</button>
+        <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] active:scale-95 transition-transform text-xs">✕</button>
       </div>
     </div>
   );
@@ -961,17 +961,17 @@ function InlineAddInput({ accentHex, inputRef, value, onChange, onCommit, onCanc
 function SectionMoveHereButton({ isTarget, onToggle, onExecute, accentHex }: { isTarget: boolean; onToggle: () => void; onExecute: () => void; accentHex: string }) {
   return (
     <div className="flex items-center gap-2 py-1 px-1">
-      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "var(--border-dim)" }} />
       {isTarget ? (
-        <button onClick={(e) => { e.stopPropagation(); onExecute(); }} className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all" style={{ backgroundColor: accentHex, color: "#1a1b26" }}>
+        <button onClick={(e) => { e.stopPropagation(); onExecute(); }} className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all" style={{ backgroundColor: accentHex, color: "var(--bg-base)" }}>
           <ArrowDownToLine size={14} />
         </button>
       ) : (
-        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="w-7 h-7 flex items-center justify-center rounded-full border active:scale-95 transition-all" style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}>
+        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="w-7 h-7 flex items-center justify-center rounded-full border active:scale-95 transition-all" style={{ borderColor: "var(--border)", color: "var(--text-dim)", backgroundColor: "var(--bg-base)" }}>
           <ArrowDownToLine size={14} />
         </button>
       )}
-      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "var(--border-dim)" }} />
     </div>
   );
 }
@@ -979,17 +979,17 @@ function SectionMoveHereButton({ isTarget, onToggle, onExecute, accentHex }: { i
 function ItemMoveHereButton({ isTarget, onToggle, onExecute, accentHex }: { isTarget: boolean; onToggle: () => void; onExecute: () => void; accentHex: string }) {
   return (
     <div className="flex items-center gap-2 py-0.5 px-1 mt-1">
-      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "var(--border-dim)" }} />
       {isTarget ? (
-        <button onClick={(e) => { e.stopPropagation(); onExecute(); }} className="w-6 h-6 flex items-center justify-center rounded-full active:scale-95 transition-all" style={{ backgroundColor: accentHex, color: "#1a1b26" }}>
+        <button onClick={(e) => { e.stopPropagation(); onExecute(); }} className="w-6 h-6 flex items-center justify-center rounded-full active:scale-95 transition-all" style={{ backgroundColor: accentHex, color: "var(--bg-base)" }}>
           <ArrowDownToLine size={12} />
         </button>
       ) : (
-        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="w-6 h-6 flex items-center justify-center rounded-full border active:scale-95 transition-all" style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}>
+        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="w-6 h-6 flex items-center justify-center rounded-full border active:scale-95 transition-all" style={{ borderColor: "var(--border)", color: "var(--text-dim)", backgroundColor: "var(--bg-base)" }}>
           <ArrowDownToLine size={12} />
         </button>
       )}
-      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "var(--border-dim)" }} />
     </div>
   );
 }

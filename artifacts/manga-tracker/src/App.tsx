@@ -13,6 +13,7 @@ type View =
   | { screen: "detail"; folderId: string; workId: string };
 
 const LOCK_KEY = "pc-locked";
+const THEME_KEY = "pc-theme";
 
 export default function App() {
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -23,11 +24,19 @@ export default function App() {
   const [locked, setLocked] = useState<boolean>(() => {
     return localStorage.getItem(LOCK_KEY) === "true";
   });
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem(THEME_KEY) as "dark" | "light") ?? "dark";
+  });
   const initialLoadDone = useRef(false);
 
   useEffect(() => {
     localStorage.setItem(LOCK_KEY, locked ? "true" : "false");
   }, [locked]);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_KEY, theme);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -271,6 +280,8 @@ export default function App() {
           folders={folders}
           user={user}
           locked={locked}
+          theme={theme}
+          onToggleTheme={() => setTheme((v) => v === "dark" ? "light" : "dark")}
           onToggleLock={() => setLocked((v) => !v)}
           onSignIn={signInWithGoogle}
           onSignOut={signOut}

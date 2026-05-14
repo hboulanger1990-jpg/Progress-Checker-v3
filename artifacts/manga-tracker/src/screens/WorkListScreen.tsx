@@ -51,16 +51,12 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // 複数選択モード
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // 「ここに移動」: 選択済みアイテムを挿入するターゲットインデックス（folder.works基準）
   const [moveTargetId, setMoveTargetId] = useState<string | "top" | null>(null);
   const [showTagAction, setShowTagAction] = useState(false);
   const [tagActionInput, setTagActionInput] = useState("");
-  const [showMoveMode, setShowMoveMode] = useState(false);
 
-  // 並び順
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => folder.works[0]?.sortOrder ?? "default");
   const [showSortMenu, setShowSortMenu] = useState(false);
 
@@ -92,12 +88,10 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     }
   }, [locked]);
 
-  // selectModeを抜けるときにmoveTargetIdもリセット
   useEffect(() => {
     if (!selectMode) {
       setMoveTargetId(null);
       setShowTagAction(false);
-      setShowMoveMode(false);
     }
   }, [selectMode]);
 
@@ -121,9 +115,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     }
   }
 
-  const sortedFiltered = sortOrder !== "default"
-    ? applyWorkSortOrder(filtered)
-    : filtered;
+  const sortedFiltered = sortOrder !== "default" ? applyWorkSortOrder(filtered) : filtered;
 
   function handleDelete(w: Work) {
     if (!window.confirm(`「${w.title}」を削除しますか？\nこの操作は元に戻せません。`)) return;
@@ -156,20 +148,15 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     });
   }
 
-  // ---- 複数選択 ----
   function toggleSelectId(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-    // 選択変更時はmoveTargetとshowMoveModeをリセット
     setMoveTargetId(null);
-    setShowMoveMode(false);
   }
 
-  // 「ここに移動」実行: selectedIdsのアイテムをtargetIdの後ろに挿入
-  // targetId === "top" なら先頭に挿入
   function executeMoveHere(targetId: string | "top") {
     if (selectedIds.size === 0) return;
     const list = [...folder.works];
@@ -192,7 +179,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
 
     onReorder(result);
     setMoveTargetId(null);
-    // 進捗タイプはupdatedAtソートと干渉するのでdefaultに戻す
     if (!isReadMode && sortOrder !== "default") {
       setSortOrder("default");
       onSetSortOrder("default");
@@ -209,6 +195,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
       if (!tags.includes(t)) onEdit(id, { tags: [...tags, t] });
     });
     setTagActionInput("");
+    setShowTagAction(false);
   }
 
   function bulkRemoveTag(tag: string) {
@@ -217,20 +204,7 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
       if (!w) return;
       onEdit(id, { tags: (w.tags ?? []).filter((t) => t !== tag) });
     });
-  }
-
-  function bulkDeleteWorks() {
-    if (!window.confirm(`選択中の${selectedIds.size}件を削除しますか？\nこの操作は元に戻せません。`)) return;
-    selectedIds.forEach((id) => onDelete(id));
-    setSelectMode(false);
-    setSelectedIds(new Set());
     setShowTagAction(false);
-  }
-
-  function bulkSetColor(color: import("../types").AccentColor) {
-    selectedIds.forEach((id) => {
-      onEdit(id, { accentColor: color });
-    });
   }
 
   const selectedWorks = folder.works.filter((w) => selectedIds.has(w.id));
@@ -242,10 +216,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     onSetSortOrder(order);
   }
 
-  // 「ここに移動」ボタンの表示条件: showMoveModeがtrueのとき
-  const showMoveButton = showMoveMode && selectedIds.size > 0;
+  const showMoveButton = selectMode && selectedIds.size > 0;
 
-  // 完了タイプのタイトルクラス
   const readTitleClass = itemSize === "1"
     ? "line-clamp-1"
     : itemSize === "2"
@@ -254,7 +226,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
 
   return (
     <div
-      className="min-h-screen bg-[#1a1b26] flex flex-col relative"
+      className="min-h-screen flex flex-col relative"
+      style={{ background: "var(--bg-gradient)" }}
       onTouchStart={(e) => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
       onTouchEnd={(e) => {
         const dx = e.changedTouches[0].clientX - touchStart.current.x;
@@ -268,22 +241,23 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
     >
       {isDragOver && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-[#1a1b26]/80 backdrop-blur-sm" />
+          <div className="absolute inset-0 backdrop-blur-sm" style={{ backgroundColor: "var(--bg-base)", opacity: 0.8 }} />
           <div className="relative border-2 border-dashed rounded-3xl px-10 py-8 text-center" style={{ borderColor: folderHex }}>
             <div className="flex justify-center"><Grid2x2Check size={40} /></div>
             <p className="font-bold text-lg" style={{ color: folderHex }}>ここにドロップ</p>
-            <p className="text-sm text-[#787c99] mt-1">1行につき1作品として追加します</p>
+            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>1行につき1作品として追加します</p>
           </div>
         </div>
       )}
 
-      <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 pt-2 pb-3">
+      <header className="sticky top-0 z-10 backdrop-blur-md border-b px-4 pt-2 pb-3"
+        style={{ backgroundColor: "color-mix(in srgb, var(--bg-base) 95%, transparent)", borderColor: "var(--border-dim)" }}>
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-3">
             <button onClick={onBack} className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2" style={{ color: folderHex }}>
               <ArrowLeft size={20} /><span>戻る</span>
             </button>
-            <h1 className="flex-1 font-bold text-[#c0caf5] text-base truncate">{folder.title}</h1>
+            <h1 className="flex-1 font-bold text-base truncate" style={{ color: "var(--text-primary)" }}>{folder.title}</h1>
             <div className="flex items-center gap-2 shrink-0">
               {/* ロックボタン */}
               <button
@@ -291,44 +265,44 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                 style={locked
                   ? { backgroundColor: "#f7768e22", borderColor: "#f7768e", color: "#f7768e" }
-                  : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                  : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
                 }
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
-              {/* 完了タイプ: 検索ボタン */}
               {isReadMode && !selectMode && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowSearch((v) => !v); if (showSearch) { setSearch(""); } }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                   style={showSearch
-                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--text-on-accent)" }
+                    : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
                   }
                   title="検索"
                 ><Search size={16} /></button>
               )}
 
-              {/* 並び順ボタン（選択モード中は非表示） */}
               {!selectMode && (
                 <div className="relative">
                   <button
                     onClick={(e) => { e.stopPropagation(); if (!locked) setShowSortMenu((v) => !v); }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                     style={showSortMenu
-                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
+                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--text-on-accent)" }
                       : sortOrder !== "default"
                         ? { backgroundColor: `${folderHex}22`, borderColor: folderHex, color: folderHex }
-                        : { backgroundColor: "#24283b", borderColor: "#3b4261", color: locked ? "#3b4261" : "#787c99" }
+                        : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--locked-color)" : "var(--text-muted)" }
                     }
                     title="並び順"
                   ><SlidersHorizontal size={16} /></button>
                   {showSortMenu && (
-                    <div className="absolute right-0 top-10 z-30 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-2xl overflow-hidden min-w-[160px]" onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute right-0 top-10 z-30 rounded-xl shadow-2xl overflow-hidden min-w-[160px] border"
+                      style={{ backgroundColor: "var(--bg-overlay)", borderColor: "var(--border)" }}
+                      onClick={(e) => e.stopPropagation()}>
                       {sortOptions.map((opt) => (
                         <button key={opt.value} onClick={() => handleSortOrderChange(opt.value)}
                           className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
-                          style={{ color: sortOrder === opt.value ? folderHex : "#a9b1d6", backgroundColor: sortOrder === opt.value ? `${folderHex}11` : "transparent" }}
+                          style={{ color: sortOrder === opt.value ? folderHex : "var(--text-sub)", backgroundColor: sortOrder === opt.value ? `${folderHex}11` : "transparent" }}
                         >{opt.label}{sortOrder === opt.value && <Check size={14} />}</button>
                       ))}
                     </div>
@@ -336,7 +310,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                 </div>
               )}
 
-              {/* 選択モードボタン。逆順中は無効 */}
               {(() => {
                 const isReverse = sortOrder === "reverse";
                 const disabled = !selectMode && (locked || isReverse);
@@ -355,8 +328,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     }}
                     className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
                     style={selectMode
-                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26", minWidth: "2rem" }
-                      : { backgroundColor: "#24283b", borderColor: "#3b4261", color: disabled ? "#3b4261" : "#787c99", minWidth: "2rem" }
+                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--text-on-accent)", minWidth: "2rem" }
+                      : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: disabled ? "var(--locked-color)" : "var(--text-muted)", minWidth: "2rem" }
                     }
                     title={selectMode ? "完了" : isReverse ? "逆順中は並び替え不可" : "選択モード"}
                   >
@@ -371,15 +344,17 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
             </div>
           </div>
 
-          {/* 進捗タイプ: 常時表示の検索バー（選択モード中は不可視で領域確保） */}
-          {!isReadMode && (
-            <div style={selectMode ? { visibility: "hidden" } : {}}>
+          {!isReadMode && !selectMode && (
+            <>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}><Search size={20} /></span>
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="作品を検索..."
-                  className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
+                  className="w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none transition-colors"
+                  style={{ backgroundColor: "var(--bg-input)", color: "var(--text-primary)", borderColor: "var(--border)" }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = "#7aa2f7"}
+                  onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
                 />
-                {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>}
+                {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}><X size={20} /></button>}
               </div>
               {allTags.length > 0 && (
                 <div className="flex gap-1.5 mt-2 flex-wrap">
@@ -388,51 +363,59 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     return (
                       <button key={tag} onClick={() => setSelectedTag(isActive ? null : tag)}
                         className="text-xs px-2.5 py-1 rounded-full border transition-all active:scale-95"
-                        style={isActive ? { backgroundColor: folderHex, color: "#1a1b26", borderColor: folderHex } : { backgroundColor: "#24283b", color: "#787c99", borderColor: "#3b4261" }}
+                        style={isActive ? { backgroundColor: folderHex, color: "var(--text-on-accent)", borderColor: folderHex } : { backgroundColor: "var(--bg-surface)", color: "var(--text-muted)", borderColor: "var(--border)" }}
                       >#{tag}</button>
                     );
                   })}
                 </div>
               )}
-            </div>
+            </>
           )}
 
+          {selectMode && (
+            <p className="text-xs text-center py-1" style={{ color: "var(--text-muted)" }}>
+              {selectedIds.size > 0
+                ? `${selectedIds.size}件選択中 — 移動先の「ここに移動」をタップ`
+                : "タップして選択、もう一度タップで解除"}
+            </p>
+          )}
         </div>
       </header>
 
       <main className="flex-1 px-4 py-3 max-w-lg mx-auto w-full pb-32">
-        {/* 完了タイプ: ゲージ（スクロールで消える、選択モード中は不可視で領域確保） */}
-        {isReadMode && (() => {
+        {isReadMode && !selectMode && (() => {
           const totalWorks = folder.works.length;
           const completedWorks = folder.works.filter((w) => w.completed).length;
           const pct = totalWorks === 0 ? 0 : Math.round((completedWorks / totalWorks) * 100);
           return (
-            <div className="mb-3" style={selectMode ? { visibility: "hidden" } : {}}>
+            <div className="mb-3">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-[#787c99]">完了 {completedWorks} / {totalWorks}</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>完了 {completedWorks} / {totalWorks}</span>
                 <span className="text-xs font-bold" style={{ color: folderHex }}>{pct}%</span>
               </div>
-              <div className="h-1 bg-[#24283b] rounded-full overflow-hidden">
+              <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bg-surface)" }}>
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: folderHex }} />
               </div>
             </div>
           );
         })()}
 
-        {/* 完了タイプ: 検索バー・タグ（ゲージの下） */}
-        {isReadMode && (
-          <div style={selectMode ? { visibility: "hidden" } : {}}>
+        {isReadMode && !selectMode && (
+          <>
             {showSearch && (
               <div className="relative mb-2">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99]"><Search size={20} /></span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}><Search size={20} /></span>
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="作品を検索..."
                   autoFocus
-                  className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
+                  className="w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none transition-colors"
+                  style={{ backgroundColor: "var(--bg-input)", color: "var(--text-primary)", borderColor: "var(--border)" }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = "#7aa2f7"}
+                  onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
                 />
-                {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99]"><X size={20} /></button>}
+                {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}><X size={20} /></button>}
               </div>
             )}
             {allTags.length > 0 && (
@@ -442,23 +425,23 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                   return (
                     <button key={tag} onClick={() => setSelectedTag(isActive ? null : tag)}
                       className="text-xs px-2.5 py-1 rounded-full border transition-all active:scale-95"
-                      style={isActive ? { backgroundColor: folderHex, color: "#1a1b26", borderColor: folderHex } : { backgroundColor: "#24283b", color: "#787c99", borderColor: "#3b4261" }}
+                      style={isActive ? { backgroundColor: folderHex, color: "var(--text-on-accent)", borderColor: folderHex } : { backgroundColor: "var(--bg-surface)", color: "var(--text-muted)", borderColor: "var(--border)" }}
                     >#{tag}</button>
                   );
                 })}
               </div>
             )}
-          </div>
+          </>
         )}
+
         {sortedFiltered.length === 0 ? (
           <div className="mt-20 text-center space-y-2">
-            <div className="flex justify-center"><ListChecks size={40} /></div>
-            <p className="text-[#787c99] text-sm">{search || selectedTag ? "条件に一致する作品はありません" : "作品がありません"}</p>
-            {!search && !selectedTag && <p className="text-[#4a5177] text-xs">下のボタンから追加しましょう</p>}
+            <div className="flex justify-center" style={{ color: "var(--text-muted)" }}><ListChecks size={40} /></div>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>{search || selectedTag ? "条件に一致する作品はありません" : "作品がありません"}</p>
+            {!search && !selectedTag && <p className="text-xs" style={{ color: "var(--text-dim)" }}>下のボタンから追加しましょう</p>}
           </div>
         ) : isReadMode ? (
           <div className="space-y-2">
-            {/* 先頭への「ここに移動」 */}
             {showMoveButton && (
               <MoveHereButton
                 isTarget={moveTargetId === "top"}
@@ -489,25 +472,33 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
                     className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
-                    style={{ backgroundColor: done ? hex : "#24283b", borderColor: isChecked ? (done ? "#1a1b26" : "#7aa2f7") : isSelected ? "#7aa2f7" : done ? hex : "#3b4261", outline: isChecked ? (done ? "2px solid #1a1b2666" : "2px solid #7aa2f744") : "none" }}
+                    style={{
+                      backgroundColor: done ? hex : "var(--bg-surface)",
+                      borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? hex : "var(--border)",
+                      outline: isChecked ? "2px solid #7aa2f744" : "none"
+                    }}
                   >
                     <div className="flex items-start gap-2">
                       {selectMode && (
-                        <span className="shrink-0 mt-0.5" style={{ color: isChecked ? (done ? "#1a1b26" : "#7aa2f7") : done ? `${hex}88` : "#4a5177" }}>
+                        <span className="shrink-0 mt-0.5" style={{ color: isChecked ? "#7aa2f7" : "var(--text-dim)" }}>
                           {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                         </span>
                       )}
                       <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
-                        style={{ borderColor: done ? "#1a1b26" : hex, backgroundColor: done ? "#1a1b26" : "transparent", color: done ? hex : "transparent" }}
+                        style={{ borderColor: done ? "var(--text-on-accent)" : hex, backgroundColor: done ? "var(--text-on-accent)" : "transparent", color: done ? hex : "transparent" }}
                       ><Check size={20} /></span>
                       {itemSize === "1" ? (
                         <div className="flex-1 min-w-0 flex items-center gap-2">
-                          <span className={`font-bold text-sm leading-snug line-clamp-1 flex-1 min-w-0`} style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
+                          <span className="font-bold text-sm leading-snug line-clamp-1 flex-1 min-w-0"
+                            style={{ color: done ? "var(--text-on-accent)" : "var(--text-primary)" }}>{work.title}</span>
                           {work.tags && work.tags.length > 0 && (
                             <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[45%]">
                               {work.tags.map((tag) => (
                                 <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
-                                  style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
+                                  style={{
+                                    backgroundColor: done ? `${hex}33` : `${hex}22`,
+                                    color: done ? "var(--text-on-accent)" : hex
+                                  }}
                                 >#{tag}</span>
                               ))}
                             </div>
@@ -515,12 +506,16 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                         </div>
                       ) : (
                         <div className="flex-1 min-w-0">
-                          <span className={`font-bold text-sm leading-snug ${readTitleClass}`} style={{ color: done ? "#1a1b26" : "#c0caf5" }}>{work.title}</span>
+                          <span className={`font-bold text-sm leading-snug ${readTitleClass}`}
+                            style={{ color: done ? "var(--text-on-accent)" : "var(--text-primary)" }}>{work.title}</span>
                           {work.tags && work.tags.length > 0 && (
                             <div className="flex gap-1 flex-wrap mt-1">
                               {work.tags.map((tag) => (
                                 <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
-                                  style={{ backgroundColor: done ? "#1a1b2622" : `${hex}22`, color: done ? "#1a1b2699" : hex }}
+                                  style={{
+                                    backgroundColor: done ? `${hex}33` : `${hex}22`,
+                                    color: done ? "var(--text-on-accent)" : hex
+                                  }}
                                 >#{tag}</span>
                               ))}
                             </div>
@@ -531,11 +526,16 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                   </button>
                   {isSelected && !selectMode && !locked && (
                     <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"><Pencil size={16} /> 編集</button>
-                      <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
+                      <button onClick={() => { setEditTarget(work); setSelectedId(null); }}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border active:scale-95 transition-transform shadow-lg"
+                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "#7aa2f7", color: "#7aa2f7" }}
+                      ><Pencil size={16} /> 編集</button>
+                      <button onClick={() => handleDelete(work)}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border active:scale-95 transition-transform shadow-lg"
+                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "#f7768e", color: "#f7768e" }}
+                      ><Trash2 size={16} /> 削除</button>
                     </div>
                   )}
-                  {/* 各アイテムの後の「ここに移動」 */}
                   {showMoveButton && !isChecked && (
                     <MoveHereButton
                       isTarget={moveTargetId === work.id}
@@ -550,7 +550,6 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
           </div>
         ) : (
           <div className="space-y-2">
-            {/* 先頭への「ここに移動」 */}
             {showMoveButton && (
               <MoveHereButton
                 isTarget={moveTargetId === "top"}
@@ -579,22 +578,26 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     onTouchStart={(e) => { if (!selectMode) handleTouchStart(e, work.id); }}
                     onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
-                    className={`w-full bg-[#24283b] border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked || isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"}`}
+                    className={`w-full border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked || isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : ""}`}
+                    style={{
+                      backgroundColor: "var(--bg-surface)",
+                      borderColor: isChecked || isSelected ? "#7aa2f7" : "var(--border)"
+                    }}
                   >
                     {selectMode && (
-                      <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "#4a5177" }}>
+                      <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "var(--text-dim)" }}>
                         {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                       </span>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="font-bold text-[#c0caf5] text-sm leading-tight truncate">{work.title}</span>
+                        <span className="font-bold text-sm leading-tight truncate" style={{ color: "var(--text-primary)" }}>{work.title}</span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs text-[#787c99]">{read}/{total}{work.unit}</span>
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>{read}/{total}{work.unit}</span>
                           <span className="text-xs font-bold" style={{ color: hex }}>{percent}%</span>
                         </div>
                       </div>
-                      <div className="h-1 bg-[#1a1b26] rounded-full overflow-hidden mb-1.5">
+                      <div className="h-1 rounded-full overflow-hidden mb-1.5" style={{ backgroundColor: "var(--bg-base)" }}>
                         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: hex }} />
                       </div>
                       {work.tags && work.tags.length > 0 && (
@@ -608,11 +611,16 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                   </button>
                   {isSelected && !selectMode && !locked && (
                     <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => { setEditTarget(work); setSelectedId(null); }} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"><Pencil size={16} /> 編集</button>
-                      <button onClick={() => handleDelete(work)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"><Trash2 size={16} /> 削除</button>
+                      <button onClick={() => { setEditTarget(work); setSelectedId(null); }}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border active:scale-95 transition-transform shadow-lg"
+                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "#7aa2f7", color: "#7aa2f7" }}
+                      ><Pencil size={16} /> 編集</button>
+                      <button onClick={() => handleDelete(work)}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border active:scale-95 transition-transform shadow-lg"
+                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "#f7768e", color: "#f7768e" }}
+                      ><Trash2 size={16} /> 削除</button>
                     </div>
                   )}
-                  {/* 各アイテムの後の「ここに移動」 */}
                   {showMoveButton && !isChecked && (
                     <MoveHereButton
                       isTarget={moveTargetId === work.id}
@@ -628,66 +636,44 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
         )}
       </main>
 
-      {/* 選択モードアクションバー（タグ操作のみ） */}
+      {/* 選択モードアクションバー */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/95 to-transparent">
+        <div className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-6 pt-3"
+          style={{ background: `linear-gradient(to top, var(--bg-base) 60%, transparent)` }}>
           <div className="max-w-lg mx-auto space-y-2">
             {showTagAction ? (
-              <div className="bg-[#1f2335] border border-[#3b4261] rounded-2xl p-4 space-y-3">
-                <p className="text-xs text-[#787c99]">タグ操作（{selectedIds.size}件）</p>
+              <div className="rounded-2xl p-4 space-y-3 border"
+                style={{ backgroundColor: "var(--bg-overlay)", borderColor: "var(--border)" }}>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>タグ操作（{selectedIds.size}件）</p>
                 <div className="flex gap-2">
                   <input value={tagActionInput} onChange={(e) => setTagActionInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); bulkAddTag(tagActionInput); } }}
                     placeholder="追加するタグを入力"
-                    className="flex-1 bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#7aa2f7]"
+                    className="flex-1 border rounded-xl px-3 py-2 text-sm outline-none"
+                    style={{ backgroundColor: "var(--bg-input)", color: "var(--text-primary)", borderColor: "var(--border)" }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = "#7aa2f7"}
+                    onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
                   />
-                  <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold text-[#1a1b26] active:scale-95 transition-transform" style={{ backgroundColor: folderHex }}>追加</button>
+                  <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform" style={{ backgroundColor: folderHex, color: "var(--text-on-accent)" }}>追加</button>
                 </div>
                 {commonTags.length > 0 && (
                   <div>
-                    <p className="text-xs text-[#787c99] mb-1.5">選択中の全作品についているタグ（タップで削除）</p>
+                    <p className="text-xs mb-1.5" style={{ color: "var(--text-muted)" }}>選択中の全作品についているタグ（タップで削除）</p>
                     <div className="flex flex-wrap gap-1.5">
                       {commonTags.map((tag) => (
-                        <button key={tag} onClick={() => bulkRemoveTag(tag)} className="text-xs px-2.5 py-1 rounded-full border border-[#f7768e] text-[#f7768e] bg-[#f7768e11] active:scale-95 transition-transform flex items-center gap-1">#{tag} <X size={10} /></button>
+                        <button key={tag} onClick={() => bulkRemoveTag(tag)} className="text-xs px-2.5 py-1 rounded-full border active:scale-95 transition-transform flex items-center gap-1"
+                          style={{ borderColor: "#f7768e", color: "#f7768e", backgroundColor: "#f7768e11" }}>#{tag} <X size={10} /></button>
                       ))}
                     </div>
                   </div>
                 )}
-                {/* 色変更 */}
-                <div>
-                  <p className="text-xs text-[#787c99] mb-1.5">色を変更</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {(Object.entries(ACCENT_COLORS) as [import("../types").AccentColor, { hex: string }][]).map(([key, { hex }]) => (
-                      <button
-                        key={key}
-                        onClick={() => bulkSetColor(key)}
-                        className="w-7 h-7 rounded-full active:scale-95 transition-transform border-2"
-                        style={{ backgroundColor: hex, borderColor: "#1a1b26" }}
-                        title={key}
-                      />
-                    ))}
-                  </div>
-                </div>
-                {/* 一括削除 */}
-                <button
-                  onClick={bulkDeleteWorks}
-                  className="w-full py-2 rounded-xl border border-[#f7768e] text-[#f7768e] text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-1.5"
-                >
-                  <Trash2 size={14} /> {selectedIds.size}件を削除
-                </button>
-                <button onClick={() => setShowTagAction(false)} className="w-full py-2 rounded-xl border border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform">閉じる</button>
+                <button onClick={() => setShowTagAction(false)} className="w-full py-2 rounded-xl border text-sm active:scale-95 transition-transform"
+                  style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>閉じる</button>
               </div>
             ) : (
               <div className="flex gap-2">
-                <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border border-[#3b4261] text-sm font-medium text-[#a9b1d6] bg-[#24283b] active:scale-95 transition-transform flex items-center justify-center gap-2"><Tag size={16} /> 選択中の操作</button>
-                <button
-                  onClick={() => { setShowMoveMode((v) => !v); setMoveTargetId(null); }}
-                  className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
-                  style={showMoveMode
-                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "#1a1b26" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#a9b1d6" }
-                  }
-                ><ArrowDownToLine size={16} /> 移動</button>
+                <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  style={{ borderColor: "var(--border)", color: "var(--text-sub)", backgroundColor: "var(--bg-surface)" }}><Tag size={16} /> タグ操作</button>
               </div>
             )}
           </div>
@@ -696,9 +682,11 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
 
       {/* 追加ボタン */}
       {!selectMode && !locked && (
-        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/90 to-transparent">
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3"
+          style={{ background: `linear-gradient(to top, var(--bg-base) 60%, transparent)` }}>
           <div className="max-w-lg mx-auto">
-            <button onClick={() => setShowAdd(true)} className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 text-[#1a1b26]" style={{ backgroundColor: folderHex, boxShadow: `0 4px 24px ${folderHex}33` }}>
+            <button onClick={() => setShowAdd(true)} className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              style={{ backgroundColor: folderHex, color: "var(--text-on-accent)", boxShadow: `0 4px 24px ${folderHex}33` }}>
               <Plus size={20} /><span>新しい作品を追加</span>
             </button>
           </div>
@@ -717,12 +705,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
   );
 }
 
-// 移動先マーカーコンポーネント
 function MoveHereButton({
-  isTarget,
-  onToggle,
-  onExecute,
-  accentHex,
+  isTarget, onToggle, onExecute, accentHex,
 }: {
   isTarget: boolean;
   onToggle: () => void;
@@ -731,12 +715,12 @@ function MoveHereButton({
 }) {
   return (
     <div className="flex items-center gap-2 py-0.5 px-1">
-      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "var(--border-dim)" }} />
       {isTarget ? (
         <button
           onClick={(e) => { e.stopPropagation(); onExecute(); }}
           className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all"
-          style={{ backgroundColor: accentHex, color: "#1a1b26" }}
+          style={{ backgroundColor: accentHex, color: "var(--text-on-accent)" }}
         >
           <ArrowDownToLine size={14} />
         </button>
@@ -744,12 +728,12 @@ function MoveHereButton({
         <button
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
           className="w-7 h-7 flex items-center justify-center rounded-full border active:scale-95 transition-all"
-          style={{ borderColor: "#3b4261", color: "#4a5177", backgroundColor: "#1a1b26" }}
+          style={{ borderColor: "var(--border)", color: "var(--text-dim)", backgroundColor: "var(--bg-base)" }}
         >
           <ArrowDownToLine size={14} />
         </button>
       )}
-      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "#2a2d3e" }} />
+      <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "var(--border-dim)" }} />
     </div>
   );
 }

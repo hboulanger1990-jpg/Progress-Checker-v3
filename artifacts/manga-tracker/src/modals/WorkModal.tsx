@@ -74,30 +74,30 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
     });
   }
 
-  const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
+  const inputClass = "w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-[--shadow-modal]/60 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
+        className="relative w-full sm:max-w-sm bg-[var(--bg-overlay)] border border-[var(--border)] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
         style={{ maxHeight: "90dvh" }}
       >
         {/* タイトル行 + ボタン */}
         <div className="flex items-center justify-between gap-3 mb-5">
-          <h2 className="text-lg font-bold text-[#c0caf5]">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">
             {mode === "add" ? "作品を追加" : "作品を編集"}
           </h2>
           <div className="flex gap-2 shrink-0">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+              className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-[var(--text-muted)] text-sm font-medium active:scale-95 transition-transform"
             >
               戻る
             </button>
             <button
               onClick={handleSave}
-              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
             >
               {mode === "add" ? "追加" : "保存"}
             </button>
@@ -106,7 +106,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-[#787c99] mb-1">タイトル</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">タイトル</label>
             <input
               ref={inputRef}
               value={title}
@@ -116,7 +116,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
             />
           </div>
           <div>
-            <label className="block text-xs text-[#787c99] mb-2">アクセントカラー</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-2">アクセントカラー</label>
             <div className="flex gap-2 flex-wrap">
               {COLOR_KEYS.map((c) => (
                 <button
@@ -136,32 +136,32 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">未完了ラベル</label>
               <input value={labelUnread} onChange={(e) => setLabelUnread(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">完了ラベル</label>
               <input value={labelRead} onChange={(e) => setLabelRead(e.target.value)} className={inputClass} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-[#787c99] mb-1">単位</label>
-              <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="話・巻など" className={`${inputClass} placeholder-[#4a5177]`} />
+              <label className="block text-xs text-[var(--text-muted)] mb-1">単位</label>
+              <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="話・巻など" className={`${inputClass} placeholder-[var(--text-dim)]`} />
             </div>
             <div>
-              <label className="block text-xs text-[#787c99] mb-1">セクション名</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">セクション名</label>
               <input
                 value={sectionLabel}
                 onChange={(e) => setSectionLabel(e.target.value)}
                 placeholder="セクション"
-                className={`${inputClass} placeholder-[#4a5177]`}
+                className={`${inputClass} placeholder-[var(--text-dim)]`}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-[#787c99] mb-1">タグ（省略可）</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">タグ（省略可）</label>
             <div className="relative">
               <div className="flex gap-2">
                 <input
@@ -173,22 +173,22 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
                     if (e.key === "Escape") setShowSuggestions(false);
                   }}
                   placeholder="タグを入力またはタップで選択"
-                  className={`${inputClass} placeholder-[#4a5177] flex-1`}
+                  className={`${inputClass} placeholder-[var(--text-dim)] flex-1`}
                 />
                 <button
                   onClick={() => addTag()}
-                  className="shrink-0 px-3 py-2 rounded-xl bg-[#2a2d3e] border border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform"
+                  className="shrink-0 px-3 py-2 rounded-xl bg-[var(--border-dim)] border border-[var(--border)] text-[var(--text-muted)] text-sm active:scale-95 transition-transform"
                 >追加</button>
               </div>
               {showSuggestions && tagSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-[var(--bg-overlay)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
                   {tagSuggestions.map((tag) => (
                     <button
                       key={tag}
                       onMouseDown={(e) => { e.preventDefault(); addTag(tag); }}
-                      className="w-full px-4 py-2.5 text-left text-sm text-[#a9b1d6] hover:bg-[#24283b] transition-colors flex items-center gap-2"
+                      className="w-full px-4 py-2.5 text-left text-sm text-[var(--text-sub)] hover:bg-[var(--bg-surface)] transition-colors flex items-center gap-2"
                     >
-                      <span className="text-[#787c99]">#</span>{tag}
+                      <span className="text-[var(--text-muted)]">#</span>{tag}
                     </button>
                   ))}
                 </div>
@@ -199,7 +199,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
                 {tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2a2d3e] border border-[#3b4261] text-xs text-[#a9b1d6]"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--border-dim)] border border-[var(--border)] text-xs text-[var(--text-sub)]"
                   >
                     #{tag}
                     <button onClick={() => removeTag(tag)} className="text-[#f7768e] leading-none">×</button>

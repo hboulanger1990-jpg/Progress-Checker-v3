@@ -98,33 +98,33 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
     onSave(l, s, e, "number", []);
   }
 
-  const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
+  const inputClass = "w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-[--shadow-modal]/60 backdrop-blur-sm"
         onClick={undefined}
       />
       <div
-        className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
+        className="relative w-full sm:max-w-sm bg-[var(--bg-overlay)] border border-[var(--border)] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
         style={{ maxHeight: "90dvh" }}
       >
         {/* タイトル行 + ボタン */}
         <div className="flex items-center justify-between gap-3 mb-5">
-          <h2 className="text-lg font-bold text-[#c0caf5]">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">
             {mode === "add" ? `${labelName}を追加` : `${labelName}を編集`}
           </h2>
           <div className="flex gap-2 shrink-0">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+              className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-[var(--text-muted)] text-sm font-medium active:scale-95 transition-transform"
             >
               戻る
             </button>
             <button
               onClick={handleSave}
-              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
             >
               {mode === "add" ? "追加" : "保存"}
             </button>
@@ -133,7 +133,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-[#787c99] mb-1">{labelName}名</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">{labelName}名</label>
             <input
               ref={inputRef}
               value={label}
@@ -144,7 +144,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
           </div>
 
           <div>
-            <label className="block text-xs text-[#787c99] mb-2">入力モード</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-2">入力モード</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleSetMode("number")}
@@ -152,7 +152,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                 style={
                   sectionMode === "number"
                     ? { backgroundColor: "#7aa2f733", borderColor: "#7aa2f7", color: "#7aa2f7" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                    : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
                 }
               >
                 <FileDigit size={20} className="inline" /> 数字
@@ -163,7 +163,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                 style={
                   sectionMode === "text"
                     ? { backgroundColor: "#7aa2f733", borderColor: "#7aa2f7", color: "#7aa2f7" }
-                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                    : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
                 }
               >
                 <FileType2 size={20} className="inline" /> テキスト
@@ -174,7 +174,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
           {sectionMode === "number" ? (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-[#787c99] mb-1">開始番号</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">開始番号</label>
                 <input
                   type="number"
                   value={startNum}
@@ -184,7 +184,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#787c99] mb-1">終了番号</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">終了番号</label>
                 <input
                   type="number"
                   value={endNum}
@@ -196,13 +196,13 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
             </div>
           ) : (
             <div>
-              <label className="block text-xs text-[#787c99] mb-2">
+              <label className="block text-xs text-[var(--text-muted)] mb-2">
                 項目（Enterで下に追加・複数行コピー可）
               </label>
 
               <button
                 onClick={() => insertItem(0)}
-                className="w-full mb-1.5 py-0.5 rounded border border-dashed border-[#2a2d3e] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
+                className="w-full mb-1.5 py-0.5 rounded border border-dashed border-[var(--border-dim)] text-[var(--text-dim)] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
               >
                 <Plus size={20} />
               </button>
@@ -217,23 +217,23 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                         onKeyDown={(e) => handleItemKeyDown(index, e)}
                         onPaste={(e) => handleItemPaste(index, e)}
                         placeholder={`項目 ${index + 1}`}
-                        className={`text-item-input ${inputClass} placeholder-[#4a5177]`}
+                        className={`text-item-input ${inputClass} placeholder-[var(--text-dim)]`}
                       />
                       <button
                         onClick={() => removeItem(index)}
-                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a1b26] text-[#f7768e] border border-[#3b4261] active:scale-95"
+                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-base)] text-[#f7768e] border border-[var(--border)] active:scale-95"
                       >×</button>
                     </div>
                     <button
                       onClick={() => insertItem(index + 1)}
-                      className="w-full mt-1 py-0.5 rounded border border-dashed border-[#2a2d3e] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
+                      className="w-full mt-1 py-0.5 rounded border border-dashed border-[var(--border-dim)] text-[var(--text-dim)] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
                     >
                       <Plus size={20} />
                     </button>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-[#4a5177] mt-2">※ テキスト入力中は背景クリックで閉じません</p>
+              <p className="text-xs text-[var(--text-dim)] mt-2">※ テキスト入力中は背景クリックで閉じません</p>
             </div>
           )}
 
@@ -243,13 +243,13 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
           <div className="flex gap-2 pt-2">
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+              className="flex-1 py-2.5 rounded-xl border border-[var(--border)] text-[var(--text-muted)] text-sm font-medium active:scale-95 transition-transform"
             >
               戻る
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 py-2.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+              className="flex-1 py-2.5 rounded-xl bg-[#7aa2f7] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
             >
               {mode === "add" ? "追加" : "保存"}
             </button>

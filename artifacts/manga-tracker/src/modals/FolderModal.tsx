@@ -44,30 +44,30 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
     onSave(t, color, folderType, defaultLabelUnread.trim(), defaultLabelRead.trim(), defaultUnit.trim(), itemSize);
   }
 
-  const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
+  const inputClass = "w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-[--shadow-modal]/60 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
+        className="relative w-full sm:max-w-sm bg-[var(--bg-overlay)] border border-[var(--border)] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
         style={{ maxHeight: "90dvh" }}
       >
         {/* タイトル行 + ボタン */}
         <div className="flex items-center justify-between gap-3 mb-5">
-          <h2 className="text-lg font-bold text-[#c0caf5]">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">
             {mode === "add" ? "フォルダを追加" : "フォルダを編集"}
           </h2>
           <div className="flex gap-2 shrink-0">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 rounded-xl border border-[#3b4261] text-[#787c99] text-sm font-medium active:scale-95 transition-transform"
+              className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-[var(--text-muted)] text-sm font-medium active:scale-95 transition-transform"
             >
               戻る
             </button>
             <button
               onClick={handleSave}
-              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[#1a1b26] text-sm font-bold active:scale-95 transition-transform"
+              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
             >
               {mode === "add" ? "追加" : "保存"}
             </button>
@@ -76,7 +76,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-[#787c99] mb-1">フォルダ名</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">フォルダ名</label>
             <input
               ref={inputRef}
               value={title}
@@ -87,7 +87,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
           </div>
 
           <div>
-            <label className="block text-xs text-[#787c99] mb-2">管理タイプ</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-2">管理タイプ</label>
             <div className="grid grid-cols-2 gap-2">
               {(["progress", "read"] as const).map((t) => {
                 const isSelected = folderType === t;
@@ -98,11 +98,11 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
                     onClick={() => setFolderType(t)}
                     className="rounded-xl border p-3 text-center transition-all active:scale-95"
                     style={{
-                      borderColor: isSelected ? ACCENT_COLORS[color].hex : "#3b4261",
-                      backgroundColor: isSelected ? `${ACCENT_COLORS[color].hex}22` : "#24283b",
+                      borderColor: isSelected ? ACCENT_COLORS[color].hex : "var(--border)",
+                      backgroundColor: isSelected ? `${ACCENT_COLORS[color].hex}22` : "var(--bg-surface)",
                     }}
                   >
-                    <div className="text-sm font-bold" style={{ color: isSelected ? ACCENT_COLORS[color].hex : "#c0caf5" }}>
+                    <div className="text-sm font-bold" style={{ color: isSelected ? ACCENT_COLORS[color].hex : "var(--text-primary)" }}>
                       {label}
                     </div>
                   </button>
@@ -112,7 +112,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
           </div>
 
           <div>
-            <label className="block text-xs text-[#787c99] mb-2">アクセントカラー</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-2">アクセントカラー</label>
             <div className="flex gap-2 flex-wrap">
               {COLOR_KEYS.map((c) => (
                 <button
@@ -132,46 +132,46 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
           </div>
 
           {folderType === "progress" && (
-            <div className="border-t border-[#3b4261] pt-4">
-              <p className="text-xs text-[#787c99] mb-3">新規作品のデフォルト設定（省略可）</p>
+            <div className="border-t border-[var(--border)] pt-4">
+              <p className="text-xs text-[var(--text-muted)] mb-3">新規作品のデフォルト設定（省略可）</p>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">未完了ラベル</label>
                   <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} className={inputClass} />
                 </div>
                 <div>
-                  <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">完了ラベル</label>
                   <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} className={inputClass} />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-[#787c99] mb-1">単位</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">単位</label>
                 <input value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} className={inputClass} />
               </div>
             </div>
           )}
 
           {folderType === "read" && (
-  <div className="border-t border-[#3b4261] pt-4">
-    <p className="text-xs text-[#787c99] mb-3">ステータスラベル（省略可）</p>
+  <div className="border-t border-[var(--border)] pt-4">
+    <p className="text-xs text-[var(--text-muted)] mb-3">ステータスラベル（省略可）</p>
     <div className="grid grid-cols-2 gap-3 mb-4">
       <div>
-        <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
-        <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} placeholder="未完了" className={`${inputClass} placeholder-[#4a5177]`} />
+        <label className="block text-xs text-[var(--text-muted)] mb-1">未完了ラベル</label>
+        <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} placeholder="未完了" className={`${inputClass} placeholder-[var(--text-dim)]`} />
       </div>
       <div>
-        <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
-        <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} placeholder="完了" className={`${inputClass} placeholder-[#4a5177]`} />
+        <label className="block text-xs text-[var(--text-muted)] mb-1">完了ラベル</label>
+        <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} placeholder="完了" className={`${inputClass} placeholder-[var(--text-dim)]`} />
       </div>
     </div>
-    <label className="block text-xs text-[#787c99] mb-2">マスのサイズ</label>
+    <label className="block text-xs text-[var(--text-muted)] mb-2">マスのサイズ</label>
     <div className="grid grid-cols-3 gap-2">
       {([["1", "1行"], ["2", "2行"], ["full", "全文"]] as const).map(([val, label]) => (
         <button key={val} onClick={() => setItemSize(val)}
           className="py-2.5 rounded-xl border text-sm font-medium transition-colors active:scale-95"
           style={itemSize === val
             ? { backgroundColor: `${ACCENT_COLORS[color].hex}22`, borderColor: ACCENT_COLORS[color].hex, color: ACCENT_COLORS[color].hex }
-            : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }}
+            : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }}
         >{label}</button>
       ))}
     </div>

@@ -1,0 +1,52 @@
+:root, [data-theme="dark"] {
+  --bg-base: #1a1b26;
+  --bg-surface: #24283b;
+  --bg-overlay: #1f2335;
+  --bg-input: #24283b;
+  --border: #3b4261;
+  --border-dim: #2a2d3e;
+  --text-primary: #c0caf5;
+  --text-muted: #787c99;
+  --text-sub: #a9b1d6;
+  --text-dim: #4a5177;
+  --text-on-accent: #1a1b26;
+  --text-checked: #1a1b26;
+  --text-tag-checked: #787c99;
+  --shadow-modal: rgba(0,0,0,0.6);
+  --bg-gradient: linear-gradient(135deg, #1a1b26 0%, #1e2030 50%, #16161e 100%);
+  --locked-color: #3b4261;
+}
+
+[data-theme="light"] {
+  --bg-base: #F5F2ED;
+  --bg-surface: #EDE9E3;
+  --bg-overlay: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --border: #D4CFC8;
+  --border-dim: #DDD9D3;
+  --text-primary: #2D2A26;
+  --text-muted: #7A746C;
+  --text-sub: #4A4540;
+  --text-dim: #A8A39D;
+  --text-on-accent: #1a1b26;
+  --text-checked: #2D2A26;
+  --text-tag-checked: #9ca3af;
+  --shadow-modal: rgba(0,0,0,0.25);
+  --bg-gradient: linear-gradient(135deg, #F5F2ED 0%, #EDE9E3 50%, #F0ECE6 100%);
+  --locked-color: #D4CFC8;
+}
+
+body {
+  background: var(--bg-gradient);
+  min-height: 100dvh;
+}
+
+/* タグ：チェック後の共通スタイル変数 */
+:root, [data-theme="dark"] {
+  --tag-checked-bg: #2a2d3e;
+  --tag-checked-text: #787c99;
+}
+[data-theme="light"] {
+  --tag-checked-bg: #DDD9D3;
+  --tag-checked-text: #7A746C;
+}

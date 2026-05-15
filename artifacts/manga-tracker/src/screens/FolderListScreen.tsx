@@ -3,6 +3,17 @@ import { useState, useRef, useEffect } from "react";
 import type { AccentColor, Folder } from "../types";
 import { ACCENT_COLORS } from "../types";
 import FolderModal from "../modals/FolderModal";
+
+function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): string {
+  const gray = theme === "dark" ? 0x78 : 0xbe;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const nr = Math.round(r + (gray - r) * ratio);
+  const ng = Math.round(g + (gray - g) * ratio);
+  const nb = Math.round(b + (gray - b) * ratio);
+  return `rgb(${nr},${ng},${nb})`;
+}
 import BackupModal from "../modals/BackupModal";
 import type { User } from "@supabase/supabase-js";
 
@@ -308,7 +319,8 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
           <div className="max-w-lg mx-auto">
             <button
               onClick={() => setShowAdd(true)}
-              className="w-full bg-[#7aa2f7] text-[var(--bg-base)] font-bold py-4 rounded-2xl text-base shadow-lg shadow-[#7aa2f7]/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              style={{ backgroundColor: mixWithGray("#7aa2f7", theme, 0.3), color: "var(--bg-base)", boxShadow: "0 4px 24px #7aa2f733" }}
             >
               <Plus size={20} /><span>新しいフォルダを追加</span>
             </button>

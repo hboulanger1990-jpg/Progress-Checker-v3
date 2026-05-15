@@ -158,8 +158,7 @@ export default function App() {
     mutate((prev) => prev.map((f) => {
       if (f.id !== folderId) return f;
       const updatedWorks = f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() });
-      const sorted = f.type === "read" ? updatedWorks : updatedWorks.sort((a, b) => b.updatedAt - a.updatedAt);
-      return { ...f, updatedAt: Date.now(), works: sorted };
+      return { ...f, updatedAt: Date.now(), works: updatedWorks };
     }));
   }
 
@@ -198,10 +197,10 @@ export default function App() {
   // ---- Section CRUD ----
   function addSection(folderId: string, workId: string, s: Omit<Section, "id" | "statuses">) {
     const section: Section = { ...s, id: crypto.randomUUID(), statuses: {} };
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: [...w.sections, section], updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: [...w.sections, section], updatedAt: Date.now() }) }));
   }
   function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items" | "sortOrder">>) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }) }) }));
   }
 
   // セクション並び順のみ更新（updatedAt更新なし）
@@ -233,15 +232,14 @@ export default function App() {
   }
 
   function deleteSection(folderId: string, workId: string, sectionId: string) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.filter((s) => s.id !== sectionId) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.filter((s) => s.id !== sectionId) }) }));
   }
 
   function reorderSections(folderId: string, workId: string, newSections: Section[]) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : {
       ...f,
       updatedAt: Date.now(),
-      works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: newSections, updatedAt: Date.now() })
-        .sort((a, b) => b.updatedAt - a.updatedAt),
+      works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: newSections, updatedAt: Date.now() }),
     }));
   }
 
@@ -253,12 +251,12 @@ export default function App() {
         ...w,
         updatedAt: Date.now(),
         sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, items: newItems, statuses: newStatuses }),
-      }).sort((a, b) => b.updatedAt - a.updatedAt),
+      }),
     }));
   }
 
   function toggleItem(folderId: string, workId: string, sectionId: string, num: number) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => { if (s.id !== sectionId) return s; const next = { ...s.statuses }; if (next[num]) delete next[num]; else next[num] = "read"; return { ...s, statuses: next }; }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => { if (s.id !== sectionId) return s; const next = { ...s.statuses }; if (next[num]) delete next[num]; else next[num] = "read"; return { ...s, statuses: next }; }) }) }));
   }
 
   function importHandler(data: Folder[]) {

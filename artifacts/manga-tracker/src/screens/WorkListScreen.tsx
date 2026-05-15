@@ -67,6 +67,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [moveTargetId, setMoveTargetId] = useState<string | "top" | null>(null);
+  const [showMoveMode, setShowMoveMode] = useState(false);
   const [showTagAction, setShowTagAction] = useState(false);
   const [tagActionInput, setTagActionInput] = useState("");
 
@@ -98,12 +99,14 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
       setSelectedIds(new Set());
       setSelectedId(null);
       setMoveTargetId(null);
+      setShowMoveMode(false);
     }
   }, [locked]);
 
   useEffect(() => {
     if (!selectMode) {
       setMoveTargetId(null);
+      setShowMoveMode(false);
       setShowTagAction(false);
     }
   }, [selectMode]);
@@ -168,6 +171,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
       return next;
     });
     setMoveTargetId(null);
+    setShowMoveMode(false);
   }
 
   function executeMoveHere(targetId: string | "top") {
@@ -220,6 +224,15 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
     setShowTagAction(false);
   }
 
+  function bulkChangeTagColor(newHex: string) {
+    const colorEntry = Object.entries(ACCENT_COLORS).find(([, v]) => v.hex === newHex);
+    if (!colorEntry) return;
+    const newAccentColor = colorEntry[0] as import("../types").AccentColor;
+    selectedIds.forEach((id) => {
+      onEdit(id, { accentColor: newAccentColor });
+    });
+  }
+
   const selectedWorks = folder.works.filter((w) => selectedIds.has(w.id));
   const commonTags = allTags.filter((tag) => selectedWorks.every((w) => (w.tags ?? []).includes(tag)));
 
@@ -229,7 +242,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
     onSetSortOrder(order);
   }
 
-  const showMoveButton = selectMode && selectedIds.size > 0;
+  const showMoveButton = showMoveMode && selectedIds.size > 0;
 
   const readTitleClass = itemSize === "1"
     ? "line-clamp-1"
@@ -341,7 +354,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                     }}
                     className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
                     style={selectMode
-                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--text-on-accent)", minWidth: "2rem" }
+                      ? { backgroundColor: mixWithGray(folderHex, theme, 0.3), borderColor: mixWithGray(folderHex, theme, 0.3), color: "var(--bg-base)", minWidth: "2rem" }
                       : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: disabled ? "var(--locked-color)" : "var(--text-muted)", minWidth: "2rem" }
                     }
                     title={selectMode ? "完了" : isReverse ? "逆順中は並び替え不可" : "選択モード"}
@@ -357,8 +370,8 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
             </div>
           </div>
 
-          {!isReadMode && !selectMode && (
-            <>
+          {!isReadMode && (
+            <div style={selectMode ? { visibility: "hidden" } : {}}>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}><Search size={20} /></span>
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="作品を検索..."
@@ -375,46 +388,38 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                     const isActive = selectedTag === tag;
                     return (
                       <button key={tag} onClick={() => setSelectedTag(isActive ? null : tag)}
-                        className="text-xs px-2.5 py-1 rounded-full border transition-all active:scale-95"
+                        className="text-xs px-2.5 py-1 rounded-full border active:scale-95"
                         style={isActive ? { backgroundColor: folderHex, color: "var(--text-on-accent)", borderColor: folderHex } : { backgroundColor: "var(--bg-surface)", color: "var(--text-muted)", borderColor: "var(--border)" }}
                       >#{tag}</button>
                     );
                   })}
                 </div>
               )}
-            </>
-          )}
-
-          {selectMode && (
-            <p className="text-xs text-center py-1" style={{ color: "var(--text-muted)" }}>
-              {selectedIds.size > 0
-                ? `${selectedIds.size}件選択中 — 移動先の「ここに移動」をタップ`
-                : "タップして選択、もう一度タップで解除"}
-            </p>
+            </div>
           )}
         </div>
       </header>
 
       <main className="flex-1 px-4 py-3 max-w-lg mx-auto w-full pb-32">
-        {isReadMode && !selectMode && (() => {
+        {isReadMode && (() => {
           const totalWorks = folder.works.length;
           const completedWorks = folder.works.filter((w) => w.completed).length;
           const pct = totalWorks === 0 ? 0 : Math.round((completedWorks / totalWorks) * 100);
           return (
-            <div className="mb-3">
+            <div className="mb-3" style={selectMode ? { opacity: 0, pointerEvents: "none" } : {}}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>完了 {completedWorks} / {totalWorks}</span>
-                <span className="text-xs font-bold" style={{ color: folderHex }}>{pct}%</span>
+                <span className="text-xs font-bold" style={{ color: mixWithGray(folderHex, theme, 0.3) }}>{pct}%</span>
               </div>
               <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bg-surface)" }}>
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: folderHex }} />
+                <div className="h-full rounded-full transition-all duration-200" style={{ width: `${pct}%`, backgroundColor: mixWithGray(folderHex, theme, 0.3) }} />
               </div>
             </div>
           );
         })()}
 
-        {isReadMode && !selectMode && (
-          <>
+        {isReadMode && (
+          <div style={selectMode ? { opacity: 0, pointerEvents: "none" } : {}}>
             {showSearch && (
               <div className="relative mb-2">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}><Search size={20} /></span>
@@ -437,14 +442,14 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                   const isActive = selectedTag === tag;
                   return (
                     <button key={tag} onClick={() => setSelectedTag(isActive ? null : tag)}
-                      className="text-xs px-2.5 py-1 rounded-full border transition-all active:scale-95"
+                      className="text-xs px-2.5 py-1 rounded-full border active:scale-95"
                       style={isActive ? { backgroundColor: folderHex, color: "var(--text-on-accent)", borderColor: folderHex } : { backgroundColor: "var(--bg-surface)", color: "var(--text-muted)", borderColor: "var(--border)" }}
                     >#{tag}</button>
                   );
                 })}
               </div>
             )}
-          </>
+          </div>
         )}
 
         {sortedFiltered.length === 0 ? (
@@ -487,13 +492,13 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                     className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
                     style={{
                       backgroundColor: done ? mixWithGray(hex, theme, 0.3) : "var(--bg-surface)",
-                      borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? mixWithGray(hex, theme, 0.3) : "var(--border)",
-                      outline: isChecked ? "2px solid #7aa2f744" : "none"
+                      borderColor: isChecked ? (done ? "#1a1b26" : (theme === "light" ? "#1a1b26" : "#7aa2f7")) : isSelected ? "#7aa2f7" : done ? mixWithGray(hex, theme, 0.3) : "var(--border)",
+                      outline: isChecked ? (done ? "2px solid #1a1b2666" : (theme === "light" ? "2px solid #1a1b2644" : "2px solid #7aa2f744")) : "none"
                     }}
                   >
                     <div className="flex items-start gap-2">
                       {selectMode && (
-                        <span className="shrink-0 mt-0.5" style={{ color: isChecked ? "#7aa2f7" : "var(--text-dim)" }}>
+                        <span className="shrink-0 mt-0.5" style={{ color: isChecked ? (done ? "var(--text-on-accent)" : (theme === "light" ? "var(--text-primary)" : "#7aa2f7")) : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
                           {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                         </span>
                       )}
@@ -598,7 +603,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                     }}
                   >
                     {selectMode && (
-                      <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "var(--text-dim)" }}>
+                      <span className="shrink-0" style={{ color: isChecked ? (theme === "light" ? "#1a1b26" : "#7aa2f7") : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
                         {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                       </span>
                     )}
@@ -607,11 +612,11 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                         <span className="font-bold text-sm leading-tight truncate" style={{ color: "var(--text-primary)" }}>{work.title}</span>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs" style={{ color: "var(--text-muted)" }}>{read}/{total}{work.unit}</span>
-                          <span className="text-xs font-bold" style={{ color: hex }}>{percent}%</span>
+                          <span className="text-xs font-bold" style={{ color: mixWithGray(hex, theme, 0.3) }}>{percent}%</span>
                         </div>
                       </div>
                       <div className="h-1 rounded-full overflow-hidden mb-1.5" style={{ backgroundColor: "var(--bg-base)" }}>
-                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: hex }} />
+                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${percent}%`, backgroundColor: mixWithGray(hex, theme, 0.3) }} />
                       </div>
                       {work.tags && work.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
@@ -656,18 +661,18 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
           <div className="max-w-lg mx-auto space-y-2">
             {showTagAction ? (
               <div className="rounded-2xl p-4 space-y-3 border"
-                style={{ backgroundColor: "var(--bg-overlay)", borderColor: "var(--border)" }}>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>タグ操作（{selectedIds.size}件）</p>
+                style={{ backgroundColor: "var(--bg-base)", borderColor: "var(--border)" }}>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>選択中の操作（{selectedIds.size}件）</p>
                 <div className="flex gap-2">
                   <input value={tagActionInput} onChange={(e) => setTagActionInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); bulkAddTag(tagActionInput); } }}
                     placeholder="追加するタグを入力"
                     className="flex-1 border rounded-xl px-3 py-2 text-sm outline-none"
-                    style={{ backgroundColor: "var(--bg-input)", color: "var(--text-primary)", borderColor: "var(--border)" }}
+                    style={{ backgroundColor: "var(--bg-base)", color: "var(--text-primary)", borderColor: "var(--border)" }}
                     onFocus={(e) => e.currentTarget.style.borderColor = "#7aa2f7"}
                     onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
                   />
-                  <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform" style={{ backgroundColor: folderHex, color: "var(--text-on-accent)" }}>追加</button>
+                  <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform" style={{ backgroundColor: mixWithGray(folderHex, theme, 0.3), color: "var(--bg-base)" }}>追加</button>
                 </div>
                 {commonTags.length > 0 && (
                   <div>
@@ -680,13 +685,45 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                     </div>
                   </div>
                 )}
+                <div>
+                  <p className="text-xs mb-1.5" style={{ color: "var(--text-muted)" }}>アクセントカラーを変更</p>
+                  <div className="flex gap-2">
+                    {Object.values(ACCENT_COLORS).map((c) => (
+                      <button key={c.hex} onClick={() => bulkChangeTagColor(c.hex)}
+                        className="w-6 h-6 rounded-full border-2 active:scale-90 transition-transform"
+                        style={{ backgroundColor: c.hex, borderColor: "transparent" }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!window.confirm(`選択中の${selectedIds.size}件を削除しますか？`)) return;
+                    selectedIds.forEach((id) => onDelete(id));
+                    setSelectMode(false);
+                    setSelectedIds(new Set());
+                  }}
+                  className="w-full py-2 rounded-xl border text-sm active:scale-95 transition-transform"
+                  style={{ borderColor: "#f7768e", color: "#f7768e", backgroundColor: "#f7768e11" }}
+                >選択中の作品を削除</button>
                 <button onClick={() => setShowTagAction(false)} className="w-full py-2 rounded-xl border text-sm active:scale-95 transition-transform"
                   style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>閉じる</button>
               </div>
             ) : (
               <div className="flex gap-2">
                 <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
-                  style={{ borderColor: "var(--border)", color: "var(--text-sub)", backgroundColor: "var(--bg-surface)" }}><Tag size={16} /> タグ操作</button>
+                  style={{ borderColor: "var(--border)", color: "var(--text-sub)", backgroundColor: "var(--bg-surface)" }}><Tag size={16} /> 選択中の操作</button>
+                <button
+                  onClick={() => { setShowMoveMode((v) => !v); setMoveTargetId(null); }}
+                  disabled={selectedIds.size === 0}
+                  className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  style={showMoveMode
+                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--text-on-accent)" }
+                    : selectedIds.size === 0
+                      ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
+                      : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-sub)" }
+                  }
+                ><ArrowDownToLine size={16} /> 移動</button>
               </div>
             )}
           </div>
@@ -699,7 +736,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
           style={{ background: `linear-gradient(to top, var(--bg-base) 60%, transparent)` }}>
           <div className="max-w-lg mx-auto">
             <button onClick={() => setShowAdd(true)} className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-              style={{ backgroundColor: folderHex, color: "var(--text-on-accent)", boxShadow: `0 4px 24px ${folderHex}33` }}>
+              style={{ backgroundColor: mixWithGray(folderHex, theme, 0.3), color: "var(--bg-base)", boxShadow: `0 4px 24px ${folderHex}33` }}>
               <Plus size={20} /><span>新しい作品を追加</span>
             </button>
           </div>

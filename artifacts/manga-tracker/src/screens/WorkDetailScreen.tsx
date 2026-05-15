@@ -6,10 +6,23 @@ import { calcWorkProgress, calcSectionProgress } from "../storage";
 import WorkModal from "../modals/WorkModal";
 import SectionModal from "../modals/SectionModal";
 
+/** hex カラーにグレーを mix して彩度を落とした色を返す（ratio=0.0 で元色、1.0 でグレー） */
+function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): string {
+  const gray = theme === "dark" ? 0x78 : 0xbe;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const nr = Math.round(r + (gray - r) * ratio);
+  const ng = Math.round(g + (gray - g) * ratio);
+  const nb = Math.round(b + (gray - b) * ratio);
+  return `rgb(${nr},${ng},${nb})`;
+}
+
 interface Props {
   folder: Folder;
   work: Work;
   locked: boolean;
+  theme: "dark" | "light";
   onToggleLock: () => void;
   onBack: () => void;
   onEditWork: (updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) => void;
@@ -40,7 +53,7 @@ const ITEM_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
 ];
 
 export default function WorkDetailScreen({
-  folder, work, locked, onToggleLock, onBack, onEditWork, onDeleteWork,
+  folder, work, locked, theme, onToggleLock, onBack, onEditWork, onDeleteWork,
   onAddSection, onEditSection, onDeleteSection, onToggleItem,
   onReorderSections, onReorderItems, onSetSectionSortOrder, onSetAllSectionsSortOrder,
 }: Props) {
@@ -799,13 +812,13 @@ export default function WorkDetailScreen({
                                   isThisSectionItemSelect
                                     ? isItemChecked
                                       ? isRead
-                                        ? { backgroundColor: accentHex, color: "var(--bg-base)", borderColor: "var(--bg-base)", outline: "2px solid var(--bg-base)66" }
+                                        ? { backgroundColor: mixWithGray(accentHex, theme, 0.3), color: "var(--bg-base)", borderColor: "var(--bg-base)", outline: "2px solid var(--bg-base)66" }
                                         : { backgroundColor: "#7aa2f722", color: "var(--text-primary)", borderColor: "#7aa2f7" }
                                       : isRead
-                                        ? { backgroundColor: accentHex, color: "var(--bg-base)", borderColor: accentHex }
+                                        ? { backgroundColor: mixWithGray(accentHex, theme, 0.3), color: "var(--bg-base)", borderColor: mixWithGray(accentHex, theme, 0.3) }
                                         : { backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", borderColor: "var(--border)" }
                                     : isRead
-                                      ? { backgroundColor: accentHex, color: "var(--bg-base)", borderColor: accentHex }
+                                      ? { backgroundColor: mixWithGray(accentHex, theme, 0.3), color: "var(--bg-base)", borderColor: mixWithGray(accentHex, theme, 0.3) }
                                       : { backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", borderColor: "var(--border)" }
                                 }
                               >
@@ -860,7 +873,7 @@ export default function WorkDetailScreen({
                             <button key={num} id={`item-${section.id}-${num}`}
                               onClick={() => handleToggle(section.id, num)}
                               className={`border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation transition-all duration-100 ${locked ? "" : "active:scale-90"}`}
-                              style={isRead ? { backgroundColor: accentHex, color: "var(--bg-base)", borderColor: accentHex } : { backgroundColor: "var(--bg-surface)", color: locked ? "var(--border)" : "var(--text-dim)", borderColor: "var(--border)" }}
+                              style={isRead ? { backgroundColor: mixWithGray(accentHex, theme, 0.3), color: "var(--bg-base)", borderColor: mixWithGray(accentHex, theme, 0.3) } : { backgroundColor: "var(--bg-surface)", color: locked ? "var(--border)" : "var(--text-dim)", borderColor: "var(--border)" }}
                             >{num}</button>
                           );
                         })}

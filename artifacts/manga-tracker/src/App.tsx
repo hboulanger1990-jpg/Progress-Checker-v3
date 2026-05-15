@@ -297,6 +297,7 @@ export default function App() {
         <WorkListScreen
           folder={currentFolder}
           locked={locked}
+          theme={theme}
           onToggleLock={() => setLocked((v) => !v)}
           onBack={goBack}
           onSelect={(w) => navigate({ screen: "detail", folderId: currentFolder.id, workId: w.id })}
@@ -313,6 +314,7 @@ export default function App() {
           folder={currentFolder}
           work={currentWork}
           locked={locked}
+          theme={theme}
           onToggleLock={() => setLocked((v) => !v)}
           onBack={goBack}
           onEditWork={(updates) => editWork(currentFolder.id, currentWork.id, updates)}

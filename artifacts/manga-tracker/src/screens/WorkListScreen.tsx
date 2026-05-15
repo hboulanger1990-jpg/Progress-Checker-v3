@@ -5,9 +5,22 @@ import { ACCENT_COLORS } from "../types";
 import { calcWorkProgress } from "../storage";
 import WorkModal from "../modals/WorkModal";
 
+/** hex カラーにグレーを mix して彩度を落とした色を返す（ratio=0.0 で元色、1.0 でグレー） */
+function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): string {
+  const gray = theme === "dark" ? 0x78 : 0xbe;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const nr = Math.round(r + (gray - r) * ratio);
+  const ng = Math.round(g + (gray - g) * ratio);
+  const nb = Math.round(b + (gray - b) * ratio);
+  return `rgb(${nr},${ng},${nb})`;
+}
+
 interface Props {
   folder: Folder;
   locked: boolean;
+  theme: "dark" | "light";
   onToggleLock: () => void;
   onBack: () => void;
   onSelect: (w: Work) => void;
@@ -42,7 +55,7 @@ const PROGRESS_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
   { value: "progress_desc", label: "進捗順（高→低）" },
 ];
 
-export default function WorkListScreen({ folder, locked, onToggleLock, onBack, onSelect, onToggleCompleted, onAdd, onEdit, onDelete, onReorder, onSetSortOrder }: Props) {
+export default function WorkListScreen({ folder, locked, theme, onToggleLock, onBack, onSelect, onToggleCompleted, onAdd, onEdit, onDelete, onReorder, onSetSortOrder }: Props) {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -473,8 +486,8 @@ export default function WorkListScreen({ folder, locked, onToggleLock, onBack, o
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
                     className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
                     style={{
-                      backgroundColor: done ? hex : "var(--bg-surface)",
-                      borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? hex : "var(--border)",
+                      backgroundColor: done ? mixWithGray(hex, theme, 0.3) : "var(--bg-surface)",
+                      borderColor: isChecked ? "#7aa2f7" : isSelected ? "#7aa2f7" : done ? mixWithGray(hex, theme, 0.3) : "var(--border)",
                       outline: isChecked ? "2px solid #7aa2f744" : "none"
                     }}
                   >

@@ -154,10 +154,10 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                   ? { backgroundColor: "#7aa2f7", borderColor: "#7aa2f7", color: "var(--bg-base)" }
                   : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--border)" : "var(--text-muted)" }
                 }
-                title={selectMode ? "完了" : locked ? "ロック中" : "選択モード"}
+                title={selectMode ? "選択モード終了" : locked ? "ロック中" : "選択モード"}
               >
                 {selectMode
-                  ? <><Check size={14} /><span className="text-xs font-bold">完了</span></>
+                  ? <Check size={16} />
                   : <CheckSquare size={16} />
                 }
               </button>

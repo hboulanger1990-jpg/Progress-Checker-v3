@@ -296,46 +296,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                 title={locked ? "ロック中（タップで解除）" : "ロック"}
               >{locked ? <LockKeyhole size={16} /> : <LockKeyholeOpen size={16} />}</button>
 
-              {isReadMode && !selectMode && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowSearch((v) => !v); if (showSearch) { setSearch(""); } }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
-                  style={showSearch
-                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--text-on-accent)" }
-                    : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
-                  }
-                  title="検索"
-                ><Search size={16} /></button>
-              )}
-
-              {!selectMode && (
-                <div className="relative">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); if (!locked) setShowSortMenu((v) => !v); }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
-                    style={showSortMenu
-                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--text-on-accent)" }
-                      : sortOrder !== "default"
-                        ? { backgroundColor: `${folderHex}22`, borderColor: folderHex, color: folderHex }
-                        : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--locked-color)" : "var(--text-muted)" }
-                    }
-                    title="並び順"
-                  ><SlidersHorizontal size={16} /></button>
-                  {showSortMenu && (
-                    <div className="absolute right-0 top-10 z-30 rounded-xl shadow-2xl overflow-hidden min-w-[160px] border"
-                      style={{ backgroundColor: "var(--bg-overlay)", borderColor: "var(--border)" }}
-                      onClick={(e) => e.stopPropagation()}>
-                      {sortOptions.map((opt) => (
-                        <button key={opt.value} onClick={() => handleSortOrderChange(opt.value)}
-                          className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
-                          style={{ color: sortOrder === opt.value ? folderHex : "var(--text-sub)", backgroundColor: sortOrder === opt.value ? `${folderHex}11` : "transparent" }}
-                        >{opt.label}{sortOrder === opt.value && <Check size={14} />}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
+              {/* 選択ボタン */}
               {(() => {
                 const isReverse = sortOrder === "reverse";
                 const disabled = !selectMode && (locked || isReverse);
@@ -352,21 +313,61 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                         setSelectedId(null);
                       }
                     }}
-                    className="h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
                     style={selectMode
-                      ? { backgroundColor: mixWithGray(folderHex, theme, 0.3), borderColor: mixWithGray(folderHex, theme, 0.3), color: "var(--bg-base)", minWidth: "2rem" }
-                      : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: disabled ? "var(--locked-color)" : "var(--text-muted)", minWidth: "2rem" }
+                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--bg-base)" }
+                      : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: disabled ? "var(--locked-color)" : "var(--text-muted)" }
                     }
-                    title={selectMode ? "完了" : isReverse ? "逆順中は並び替え不可" : "選択モード"}
+                    title={selectMode ? "選択モード終了" : isReverse ? "逆順中は並び替え不可" : "選択モード"}
                   >
-                    {selectMode ? (
-                      <><Check size={14} /><span className="text-xs font-bold">完了</span></>
-                    ) : (
-                      <CheckSquare size={16} />
-                    )}
+                    {selectMode ? <Check size={16} /> : <CheckSquare size={16} />}
                   </button>
                 );
               })()}
+
+              {/* 並び替えボタン（常時表示、selectMode中は薄く無効） */}
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (!locked && !selectMode) setShowSortMenu((v) => !v); }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
+                  style={selectMode
+                    ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--locked-color)" }
+                    : showSortMenu
+                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--bg-base)" }
+                      : sortOrder !== "default"
+                        ? { backgroundColor: `${folderHex}22`, borderColor: folderHex, color: folderHex }
+                        : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--locked-color)" : "var(--text-muted)" }
+                  }
+                  title="並び順"
+                ><SlidersHorizontal size={16} /></button>
+                {showSortMenu && (
+                  <div className="absolute right-0 top-10 z-30 rounded-xl shadow-2xl overflow-hidden min-w-[160px] border"
+                    style={{ backgroundColor: "var(--bg-overlay)", borderColor: "var(--border)" }}
+                    onClick={(e) => e.stopPropagation()}>
+                    {sortOptions.map((opt) => (
+                      <button key={opt.value} onClick={() => handleSortOrderChange(opt.value)}
+                        className="w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2"
+                        style={{ color: sortOrder === opt.value ? folderHex : "var(--text-sub)", backgroundColor: sortOrder === opt.value ? `${folderHex}11` : "transparent" }}
+                      >{opt.label}{sortOrder === opt.value && <Check size={14} />}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 検索ボタン（RLのみ・常時表示、selectMode中は薄く無効） */}
+              {isReadMode && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (!selectMode) { setShowSearch((v) => !v); if (showSearch) setSearch(""); } }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
+                  style={selectMode
+                    ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--locked-color)" }
+                    : showSearch
+                      ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--bg-base)" }
+                      : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
+                  }
+                  title="検索"
+                ><Search size={16} /></button>
+              )}
             </div>
           </div>
 
@@ -672,7 +673,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                     onFocus={(e) => e.currentTarget.style.borderColor = "#7aa2f7"}
                     onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
                   />
-                  <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform" style={{ backgroundColor: mixWithGray(folderHex, theme, 0.3), color: "var(--bg-base)" }}>追加</button>
+                  <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform" style={{ backgroundColor: folderHex, color: "var(--bg-base)" }}>追加</button>
                 </div>
                 {commonTags.length > 0 && (
                   <div>
@@ -718,7 +719,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                   disabled={selectedIds.size === 0}
                   className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
                   style={showMoveMode
-                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--text-on-accent)" }
+                    ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--bg-base)" }
                     : selectedIds.size === 0
                       ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
                       : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-sub)" }
@@ -770,7 +771,7 @@ function MoveHereButton({
         <button
           onClick={(e) => { e.stopPropagation(); onExecute(); }}
           className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all"
-          style={{ backgroundColor: accentHex, color: "var(--text-on-accent)" }}
+          style={{ backgroundColor: accentHex, color: "var(--bg-base)" }}
         >
           <ArrowDownToLine size={14} />
         </button>

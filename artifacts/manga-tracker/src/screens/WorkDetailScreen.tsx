@@ -437,26 +437,28 @@ export default function WorkDetailScreen({
                     ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
                     : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--border)" : "var(--text-muted)" }
                   }
-                  title={sectionSelectMode ? "完了" : locked ? "ロック中" : "セクション並び替え"}
+                  title={sectionSelectMode ? "選択モード終了" : locked ? "ロック中" : "セクション並び替え"}
                 >
                   {sectionSelectMode
-                    ? <><Check size={14} /><span className="text-xs font-bold">完了</span></>
+                    ? <Check size={16} />
                     : <CheckSquare size={16} />
                   }
                 </button>
               )}
 
-              {/* セクション並び順ボタン（選択モード中は非表示） */}
-              {work.sections.length > 1 && !sectionSelectMode && (
+              {/* セクション並び順ボタン（常時表示、sectionSelectMode中は薄く無効） */}
+              {work.sections.length > 1 && (
                 <div className="relative">
                   <button
-                    onClick={(e) => { e.stopPropagation(); if (!locked) setShowSectionSortMenu((v) => !v); }}
+                    onClick={(e) => { e.stopPropagation(); if (!locked && !sectionSelectMode) setShowSectionSortMenu((v) => !v); }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
-                    style={showSectionSortMenu
-                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
-                      : sectionSortOrder !== "default"
-                        ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
-                        : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--border)" : "var(--text-muted)" }
+                    style={sectionSelectMode
+                      ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--locked-color)" }
+                      : showSectionSortMenu
+                        ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
+                        : sectionSortOrder !== "default"
+                          ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
+                          : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--border)" : "var(--text-muted)" }
                     }
                     title="セクション並び順"
                   ><SlidersHorizontal size={16} /></button>
@@ -480,7 +482,9 @@ export default function WorkDetailScreen({
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-surface)] border active:scale-95 transition-transform"
                   style={sectionSelectMode
                     ? { color: "var(--border)", borderColor: "var(--border)" }
-                    : { color: showTextSearch ? accentHex : "var(--text-muted)", borderColor: showTextSearch ? accentHex : "var(--border)" }
+                    : showTextSearch
+                      ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
+                      : { backgroundColor: "var(--bg-surface)", color: "var(--text-muted)", borderColor: "var(--border)" }
                   }
                 ><Search size={20} /></button>
               )}
@@ -687,46 +691,47 @@ export default function WorkDetailScreen({
                                       ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
                                       : { backgroundColor: "transparent", borderColor: "transparent", color: itemSelectDisabled ? "var(--border)" : "var(--text-muted)" }
                                     }
-                                    title={isThisSectionItemSelect ? "完了" : itemIsReverse ? "逆順中は並び替え不可" : "項目並び替え"}
+                                    title={isThisSectionItemSelect ? "選択モード終了" : itemIsReverse ? "逆順中は並び替え不可" : "項目並び替え"}
                                   >
                                     {isThisSectionItemSelect
-                                      ? <><Check size={12} /><span className="text-xs font-bold">完了</span></>
+                                      ? <Check size={14} />
                                       : <CheckSquare size={14} />
                                     }
                                   </button>
-                                  {/* 項目選択中の「移動」ボタン */}
-                                  {isThisSectionItemSelect && (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setShowItemMoveMode((v) => !v); setItemMoveTargetIdx(null); }}
-                                      disabled={selectedItemIdxs.size === 0}
-                                      className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
-                                      style={showItemMoveMode
+                                  {/* 項目選択中の「移動」ボタン（常時表示、選択時のみ有効） */}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); if (isThisSectionItemSelect) { setShowItemMoveMode((v) => !v); setItemMoveTargetIdx(null); } }}
+                                    disabled={!isThisSectionItemSelect || selectedItemIdxs.size === 0}
+                                    className="h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-1.5 gap-0.5"
+                                    style={!isThisSectionItemSelect
+                                      ? { backgroundColor: "transparent", borderColor: "transparent", color: "var(--locked-color)" }
+                                      : showItemMoveMode
                                         ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
                                         : selectedItemIdxs.size === 0
                                           ? { backgroundColor: "transparent", borderColor: "transparent", color: "var(--border)" }
                                           : { backgroundColor: "transparent", borderColor: "transparent", color: "var(--text-muted)" }
-                                      }
-                                      title="移動"
-                                    ><ArrowDownToLine size={14} /></button>
-                                  )}
+                                    }
+                                    title="移動"
+                                  ><ArrowDownToLine size={14} /></button>
                                   </>
                                 );
                               })()}
-                              {/* 項目並び順ボタン（選択モード中は非表示） */}
-                              {!isThisSectionItemSelect && (
-                                <div className="relative">
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setShowItemSortMenu((v) => v === section.id ? null : section.id); }}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
-                                    style={showItemSortMenu === section.id
+                              {/* 項目並び順ボタン（常時表示、アイテム選択モード中は薄く無効） */}
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); if (!isThisSectionItemSelect) setShowItemSortMenu((v) => v === section.id ? null : section.id); }}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg border active:scale-95 transition-all"
+                                  style={isThisSectionItemSelect
+                                    ? { backgroundColor: "transparent", borderColor: "transparent", color: "var(--locked-color)" }
+                                    : showItemSortMenu === section.id
                                       ? { backgroundColor: accentHex, borderColor: accentHex, color: "var(--bg-base)" }
                                       : itemSortOrder !== "default"
                                         ? { backgroundColor: `${accentHex}22`, borderColor: accentHex, color: accentHex }
                                         : { backgroundColor: "transparent", borderColor: "transparent", color: "var(--text-muted)" }
-                                    }
-                                    title="項目の並び順"
-                                  ><SlidersHorizontal size={14} /></button>
-                                  {showItemSortMenu === section.id && (
+                                  }
+                                  title="項目の並び順"
+                                ><SlidersHorizontal size={14} /></button>
+                                {showItemSortMenu === section.id && (
                                     <div className="absolute right-0 top-8 z-30 bg-[var(--bg-overlay)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden min-w-[140px]" onClick={(e) => e.stopPropagation()}>
                                       {ITEM_SORT_OPTIONS.map((opt) => (
                                         <button key={opt.value} onClick={() => handleItemSortChange(section.id, opt.value)}
@@ -737,7 +742,6 @@ export default function WorkDetailScreen({
                                     </div>
                                   )}
                                 </div>
-                              )}
                             </>
                           )}
                           {!locked && (

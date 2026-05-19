@@ -1,8 +1,11 @@
-import { Pencil, Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut, SunMoon, Folder as FolderIcon } from "lucide-react";
+import { Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut, SunMoon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import type { AccentColor, Folder } from "../types";
+import type { AccentColor, Folder, FolderPattern } from "../types";
 import { ACCENT_COLORS } from "../types";
 import FolderModal from "../modals/FolderModal";
+import BackupModal from "../modals/BackupModal";
+import { FolderPatternSVG } from "../components/FolderPatternSVG";
+import type { User } from "@supabase/supabase-js";
 
 function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): string {
   const gray = theme === "dark" ? 0x78 : 0xbe;
@@ -14,8 +17,6 @@ function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): strin
   const nb = Math.round(b + (gray - b) * ratio);
   return `rgb(${nr},${ng},${nb})`;
 }
-import BackupModal from "../modals/BackupModal";
-import type { User } from "@supabase/supabase-js";
 
 interface Props {
   folders: Folder[];
@@ -27,8 +28,8 @@ interface Props {
   onSignIn: () => void;
   onSignOut: () => void;
   onSelect: (f: Folder) => void;
-  onAdd: (title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") => void;
-  onEdit: (id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") => void;
+  onAdd: (title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full", pattern: FolderPattern) => void;
+  onEdit: (id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full", pattern: FolderPattern) => void;
   onDelete: (id: string) => void;
   onReorder: (newFolders: Folder[]) => void;
   onImport: (data: Folder[]) => void;
@@ -40,8 +41,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
   const [editTarget, setEditTarget] = useState<Folder | null>(null);
   const [showBackup, setShowBackup] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Folder | null>(null);
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -49,12 +49,12 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
   const [showMoveMode, setShowMoveMode] = useState(false);
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressDidFire = useRef(false);
 
   useEffect(() => {
     if (locked) {
       setSelectMode(false);
       setSelectedIds(new Set());
-      setSelectedId(null);
       setMoveTargetId(null);
       setShowMoveMode(false);
     }
@@ -67,21 +67,24 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
     }
   }, [selectMode]);
 
-  // 登録順のまま（updatedAtでソートしない）
   const sorted = [...folders];
   const filtered = search ? sorted.filter((f) => f.title.toLowerCase().includes(search.toLowerCase())) : sorted;
 
   function handleDelete(f: Folder) {
     if (!window.confirm(`「${f.title}」を削除しますか？\n中の全作品も削除されます。`)) return;
     onDelete(f.id);
-    setSelectedId(null);
+    setDeleteTarget(null);
   }
 
-  function handlePressStart(id: string) {
+  function handleLongPressStart(folder: Folder) {
     if (locked || selectMode) return;
-    longPressTimer.current = setTimeout(() => setSelectedId(id), 500);
+    longPressDidFire.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressDidFire.current = true;
+      setEditTarget(folder);
+    }, 500);
   }
-  function handlePressEnd() {
+  function handleLongPressEnd() {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
   }
 
@@ -113,12 +116,11 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
   }
 
   const showMoveButton = showMoveMode && selectedIds.size > 0;
-  const addButtonColor = mixWithGray("#7aa2f7", theme, 0.3);
 
   return (
     <div
       className="min-h-screen flex flex-col"
-      onClick={() => { setSelectedId(null); setShowUserMenu(false); }}
+      onClick={() => { setShowUserMenu(false); }}
     >
       <header className="sticky top-0 z-10 bg-[var(--bg-base)]/95 backdrop-blur-md border-b border-[var(--border-dim)] px-4 pt-2 pb-3">
         <div className="max-w-lg mx-auto">
@@ -147,7 +149,6 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                     setMoveTargetId(null);
                   } else {
                     setSelectMode(true);
-                    setSelectedId(null);
                   }
                 }}
                 className="h-9 flex items-center justify-center rounded-xl border active:scale-95 transition-all px-2 gap-1"
@@ -160,7 +161,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                 {selectMode ? <Check size={16} /> : <CheckSquare size={16} />}
               </button>
 
-              {/* ユーザーメニューボタン */}
+              {/* ユーザーメニュー */}
               <div className="relative">
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowUserMenu((v) => !v); }}
@@ -210,7 +211,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
             </div>
           </div>
 
-          {/* 検索バー */}
+          {/* 検索バー（選択モード中は不可視で領域確保） */}
           <div style={selectMode ? { visibility: "hidden" } : {}}>
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"><Search size={20} /></span>
@@ -228,7 +229,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 max-w-lg mx-auto w-full pb-32">
+      <main className="flex-1 px-3 py-3 max-w-lg mx-auto w-full pb-32">
         {filtered.length === 0 ? (
           <div className="mt-20 text-center space-y-2">
             <p className="text-4xl">📁</p>
@@ -236,7 +237,8 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
             {!search && <p className="text-[var(--text-dim)] text-xs">下のボタンから追加しましょう</p>}
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <>
+            {/* 選択モード：移動カーソル（先頭） */}
             {showMoveButton && (
               <MoveHereButton
                 isTarget={moveTargetId === "top"}
@@ -245,86 +247,148 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                 accentHex="#7aa2f7"
               />
             )}
-            
-            {/* 2列のグリッドレイアウトへ昇華 */}
-            <div className="grid grid-cols-2 gap-3">
+
+            {/* 2カラムグリッド */}
+            <div className="grid grid-cols-2 gap-2">
               {filtered.map((folder) => {
                 const hex = ACCENT_COLORS[folder.accentColor].hex;
-                const isSelected = selectedId === folder.id;
                 const isChecked = selectedIds.has(folder.id);
-                
-                // テーマに合わせた背景グラデーションを動的に生成 (不透明度10%〜15%程度)
-                const gradColor = theme === "dark" ? `${hex}1a` : `${hex}22`;
-                const bgGradient = `linear-gradient(135deg, ${gradColor} 0%, var(--bg-surface) 60%)`;
+                const pat = (folder.pattern ?? "none") as FolderPattern;
+                const workCount = folder.works?.length ?? 0;
 
                 return (
-                  <div key={folder.id} className="relative flex flex-col justify-stretch">
+                  <div key={folder.id} className="relative">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         if (selectMode) { toggleSelectId(folder.id); return; }
-                        if (isSelected) { setSelectedId(null); return; }
+                        if (longPressDidFire.current) { longPressDidFire.current = false; return; }
                         onSelect(folder);
                       }}
-                      onMouseDown={() => { if (!selectMode) handlePressStart(folder.id); }}
-                      onMouseUp={handlePressEnd}
-                      onMouseLeave={handlePressEnd}
-                      onTouchStart={() => { if (!selectMode) handlePressStart(folder.id); }}
-                      onTouchEnd={handlePressEnd}
-                      onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(folder.id); } }}
-                      className={`w-full flex-1 border rounded-2xl p-4 text-left active:scale-[0.97] hover:translate-y-[-1px] transition-all flex flex-col gap-3 shadow-sm ${
-                        isChecked || isSelected 
-                          ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/20" 
-                          : "border-[var(--border-dim)] hover:border-[var(--border)]"
-                      }`}
-                      style={{ 
-                        background: bgGradient,
-                        borderLeftColor: hex, 
-                        borderLeftWidth: "4px" 
+                      onMouseDown={() => handleLongPressStart(folder)}
+                      onMouseUp={handleLongPressEnd}
+                      onMouseLeave={handleLongPressEnd}
+                      onTouchStart={() => handleLongPressStart(folder)}
+                      onTouchEnd={handleLongPressEnd}
+                      onTouchCancel={handleLongPressEnd}
+                      onContextMenu={(e) => {
+                        if (!selectMode && !locked) {
+                          e.preventDefault();
+                          setEditTarget(folder);
+                        }
+                      }}
+                      className="w-full text-left active:scale-[0.97] transition-all rounded-2xl overflow-hidden"
+                      style={{
+                        minHeight: "100px",
+                        backgroundColor: "var(--bg-surface)",
+                        border: isChecked
+                          ? "1.5px solid #7aa2f7"
+                          : `1px solid ${hex}44`,
+                        boxShadow: isChecked ? "0 0 0 3px #7aa2f730" : "none",
+                        position: "relative",
                       }}
                     >
-                      <div className="flex items-center justify-between w-full gap-2">
-                        {/* フォルダを象徴するアイコンを追加して「アプリ感」を向上 */}
-                        <FolderIcon size={18} style={{ color: hex }} className="shrink-0" />
-                        
-                        {selectMode && (
-                          <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "var(--text-dim)" }}>
-                            {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
+                      {/* グラデーション背景 */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background: `linear-gradient(120deg, ${hex}18 0%, transparent 60%)`,
+                          pointerEvents: "none",
+                        }}
+                      />
+
+                      {/* 左アクセントバー */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          bottom: 0,
+                          left: 0,
+                          width: "3px",
+                          backgroundColor: hex,
+                          borderRadius: "2px 0 0 2px",
+                        }}
+                      />
+
+                      {/* SVGパターン */}
+                      {pat !== "none" && (
+                        <svg
+                          viewBox="0 0 150 100"
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            pointerEvents: "none",
+                          }}
+                          preserveAspectRatio="xMaxYMid meet"
+                        >
+                          <FolderPatternSVG pattern={pat} hex={hex} />
+                        </svg>
+                      )}
+
+                      {/* コンテンツ */}
+                      <div
+                        style={{
+                          position: "relative",
+                          zIndex: 1,
+                          padding: "10px 10px 10px 14px",
+                          display: "flex",
+                          flexDirection: "column",
+                          minHeight: "100px",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+                          {selectMode && (
+                            <span className="shrink-0 mt-0.5" style={{ color: isChecked ? "#7aa2f7" : "var(--text-dim)" }}>
+                              {isChecked ? <CheckSquare size={16} /> : <Square size={16} />}
+                            </span>
+                          )}
+                          <span
+                            className="font-bold leading-tight"
+                            style={{
+                              color: "var(--text-primary)",
+                              fontSize: "13px",
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            {folder.title}
                           </span>
-                        )}
+                        </div>
+
+                        {/* 作品数 */}
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "var(--text-muted)",
+                            marginTop: "8px",
+                          }}
+                        >
+                          {workCount}作品
+                        </div>
                       </div>
-                      
-                      <span className="font-bold text-[var(--text-primary)] text-sm sm:text-base leading-snug flex-1 tracking-wide mt-1 break-all">
-                        {folder.title}
-                      </span>
                     </button>
 
-                    {/* 長押し時の編集・削除メニュー（グリッド用に最適化） */}
-                    {isSelected && !selectMode && !locked && (
-                      <div className="absolute inset-0 z-20 flex flex-col gap-1.5 p-2 bg-[var(--bg-overlay)]/95 backdrop-blur-sm rounded-2xl justify-center items-center border border-[#7aa2f7]" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => { setEditTarget(folder); setSelectedId(null); }} className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl bg-[var(--bg-surface)] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-md"><Pencil size={14} /> 編集</button>
-                        <button onClick={() => handleDelete(folder)} className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl bg-[var(--bg-surface)] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-md"><Trash2 size={14} /> 削除</button>
-                      </div>
-                    )}
-
+                    {/* 選択モード：移動カーソル（各カードの下） */}
                     {showMoveButton && !isChecked && (
-                      <div className="mt-2 w-full">
-                        <MoveHereButton
-                          isTarget={moveTargetId === folder.id}
-                          onToggle={() => setMoveTargetId((v) => v === folder.id ? null : folder.id)}
-                          onExecute={() => executeMoveHere(folder.id)}
-                          accentHex="#7aa2f7"
-                        />
-                      </div>
+                      <MoveHereButton
+                        isTarget={moveTargetId === folder.id}
+                        onToggle={() => setMoveTargetId((v) => v === folder.id ? null : folder.id)}
+                        onExecute={() => executeMoveHere(folder.id)}
+                        accentHex="#7aa2f7"
+                      />
                     )}
                   </div>
                 );
               })}
             </div>
-          </div>
+          </>
         )}
       </main>
 
+      {/* フッター：選択モード */}
       {!locked && selectMode && (
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/90 to-transparent">
           <div className="max-w-lg mx-auto flex gap-2">
@@ -339,22 +403,32 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                   : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-sub)" }
               }
             ><ArrowDownToLine size={16} /> 移動</button>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={() => {
+                  const targets = folders.filter(f => selectedIds.has(f.id));
+                  const names = targets.map(f => `「${f.title}」`).join("、");
+                  if (!window.confirm(`${names}を削除しますか？\n中の全作品も削除されます。`)) return;
+                  targets.forEach(f => onDelete(f.id));
+                  setSelectedIds(new Set());
+                  setSelectMode(false);
+                }}
+                className="py-3 px-5 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+                style={{ backgroundColor: "#f7768e22", borderColor: "#f7768e", color: "#f7768e" }}
+              ><Trash2 size={16} /> 削除</button>
+            )}
           </div>
         </div>
       )}
-      
+
+      {/* フッター：通常 */}
       {!locked && !selectMode && (
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/90 to-transparent">
           <div className="max-w-lg mx-auto">
-            {/* 追加ボタンをモダンな「光るアウトライン（ゴースト）スタイル」へ */}
             <button
               onClick={() => setShowAdd(true)}
-              className="w-full font-bold py-3.5 rounded-2xl text-base border-2 shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-overlay)]"
-              style={{ 
-                borderColor: addButtonColor, 
-                color: addButtonColor,
-                boxShadow: `0 4px 20px ${addButtonColor}11`
-              }}
+              className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              style={{ backgroundColor: mixWithGray("#7aa2f7", theme, 0.3), color: "var(--bg-base)", boxShadow: "0 4px 24px #7aa2f733" }}
             >
               <Plus size={20} /><span>新しいフォルダを追加</span>
             </button>
@@ -364,11 +438,17 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
 
       {showAdd && (
         <FolderModal mode="add" onClose={() => setShowAdd(false)}
-          onSave={(title, color, type, dlu, dlr, du, itemSize) => { onAdd(title, color, type, dlu, dlr, du, itemSize); setShowAdd(false); }} />
+          onSave={(title, color, type, dlu, dlr, du, itemSize, pattern) => {
+            onAdd(title, color, type, dlu, dlr, du, itemSize, pattern);
+            setShowAdd(false);
+          }} />
       )}
       {editTarget && (
         <FolderModal mode="edit" initial={editTarget} onClose={() => setEditTarget(null)}
-          onSave={(title, color, type, dlu, dlr, du, itemSize) => { onEdit(editTarget.id, title, color, type, dlu, dlr, du, itemSize); setEditTarget(null); }} />
+          onSave={(title, color, type, dlu, dlr, du, itemSize, pattern) => {
+            onEdit(editTarget.id, title, color, type, dlu, dlr, du, itemSize, pattern);
+            setEditTarget(null);
+          }} />
       )}
       {showBackup && (
         <BackupModal data={folders} onClose={() => setShowBackup(false)} onImport={onImport} />
@@ -379,7 +459,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
 
 function MoveHereButton({ isTarget, onToggle, onExecute, accentHex }: { isTarget: boolean; onToggle: () => void; onExecute: () => void; accentHex: string }) {
   return (
-    <div className="flex items-center gap-2 py-0.5 px-1 w-full">
+    <div className="flex items-center gap-2 py-0.5 px-1 col-span-2">
       <div className="flex-1 h-px" style={{ backgroundColor: isTarget ? accentHex : "var(--border-dim)" }} />
       {isTarget ? (
         <button onClick={(e) => { e.stopPropagation(); onExecute(); }} className="w-7 h-7 flex items-center justify-center rounded-full active:scale-95 transition-all" style={{ backgroundColor: accentHex, color: "var(--bg-base)" }}>

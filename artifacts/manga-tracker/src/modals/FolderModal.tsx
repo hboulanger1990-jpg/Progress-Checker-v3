@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import type { AccentColor, Folder } from "../types";
-import { ACCENT_COLORS } from "../types";
+import type { AccentColor, Folder, FolderPattern } from "../types";
+import { ACCENT_COLORS, FOLDER_PATTERNS } from "../types";
+import { FolderPatternSVG } from "../components/FolderPatternSVG";
 
 interface Props {
   mode: "add" | "edit";
@@ -13,11 +14,13 @@ interface Props {
     defaultLabelUnread: string,
     defaultLabelRead: string,
     defaultUnit: string,
-    itemSize: "1" | "2" | "full"
+    itemSize: "1" | "2" | "full",
+    pattern: FolderPattern
   ) => void;
 }
 
 const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
+const PATTERN_KEYS = Object.keys(FOLDER_PATTERNS) as FolderPattern[];
 
 export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -27,6 +30,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   const [defaultLabelRead, setDefaultLabelRead] = useState(initial?.defaultLabelRead ?? "");
   const [defaultUnit, setDefaultUnit] = useState(initial?.defaultUnit ?? "");
   const [itemSize, setItemSize] = useState<"1" | "2" | "full">(initial?.itemSize ?? "full");
+  const [pattern, setPattern] = useState<FolderPattern>(initial?.pattern ?? "none");
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -41,10 +45,11 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   function handleSave() {
     const t = title.trim();
     if (!t) { setError("タイトルを入力してください"); return; }
-    onSave(t, color, folderType, defaultLabelUnread.trim(), defaultLabelRead.trim(), defaultUnit.trim(), itemSize);
+    onSave(t, color, folderType, defaultLabelUnread.trim(), defaultLabelRead.trim(), defaultUnit.trim(), itemSize, pattern);
   }
 
   const inputClass = "w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
+  const hex = ACCENT_COLORS[color].hex;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -75,6 +80,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
         </div>
 
         <div className="space-y-4">
+          {/* フォルダ名 */}
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">フォルダ名</label>
             <input
@@ -86,6 +92,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
             />
           </div>
 
+          {/* 管理タイプ */}
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-2">管理タイプ</label>
             <div className="grid grid-cols-2 gap-2">
@@ -98,11 +105,11 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
                     onClick={() => setFolderType(t)}
                     className="rounded-xl border p-3 text-center transition-all active:scale-95"
                     style={{
-                      borderColor: isSelected ? ACCENT_COLORS[color].hex : "var(--border)",
-                      backgroundColor: isSelected ? `${ACCENT_COLORS[color].hex}22` : "var(--bg-surface)",
+                      borderColor: isSelected ? hex : "var(--border)",
+                      backgroundColor: isSelected ? `${hex}22` : "var(--bg-surface)",
                     }}
                   >
-                    <div className="text-sm font-bold" style={{ color: isSelected ? ACCENT_COLORS[color].hex : "var(--text-primary)" }}>
+                    <div className="text-sm font-bold" style={{ color: isSelected ? hex : "var(--text-primary)" }}>
                       {label}
                     </div>
                   </button>
@@ -111,6 +118,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
             </div>
           </div>
 
+          {/* アクセントカラー */}
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-2">アクセントカラー</label>
             <div className="flex gap-2 flex-wrap">
@@ -131,52 +139,69 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
             </div>
           </div>
 
-          {folderType === "progress" && (
+          {/* パターン選択 */}
+          <div className="border-t border-[var(--border)] pt-4">
+            <label className="block text-xs text-[var(--text-muted)] mb-2">カードパターン</label>
+            <div className="grid grid-cols-4 gap-2">
+              {PATTERN_KEYS.map((p) => {
+                const isSelected = pattern === p;
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPattern(p)}
+                    className="flex flex-col items-center gap-1 rounded-xl border p-1.5 transition-all active:scale-95"
+                    style={{
+                      borderColor: isSelected ? hex : "var(--border)",
+                      backgroundColor: isSelected ? `${hex}18` : "var(--bg-surface)",
+                    }}
+                  >
+                    <div
+                      className="w-full rounded-lg overflow-hidden"
+                      style={{
+                        height: "44px",
+                        backgroundColor: "var(--bg-overlay)",
+                        position: "relative",
+                      }}
+                    >
+                      {p !== "none" && (
+                        <svg
+                          viewBox="0 0 80 44"
+                          width="80"
+                          height="44"
+                          style={{ position: "absolute", inset: 0 }}
+                        >
+                          <FolderPatternSVG pattern={p} hex={hex} preview />
+                        </svg>
+                      )}
+                    </div>
+                    <span
+                      className="text-[10px] font-medium leading-none"
+                      style={{ color: isSelected ? hex : "var(--text-muted)" }}
+                    >
+                      {FOLDER_PATTERNS[p].label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 完了タイプ：マスのサイズのみ */}
+          {folderType === "read" && (
             <div className="border-t border-[var(--border)] pt-4">
-              <p className="text-xs text-[var(--text-muted)] mb-3">新規作品のデフォルト設定（省略可）</p>
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">未完了ラベル</label>
-                  <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">完了ラベル</label>
-                  <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} className={inputClass} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">単位</label>
-                <input value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} className={inputClass} />
+              <label className="block text-xs text-[var(--text-muted)] mb-2">マスのサイズ</label>
+              <div className="grid grid-cols-3 gap-2">
+                {([["1", "1行"], ["2", "2行"], ["full", "全文"]] as const).map(([val, label]) => (
+                  <button key={val} onClick={() => setItemSize(val)}
+                    className="py-2.5 rounded-xl border text-sm font-medium transition-colors active:scale-95"
+                    style={itemSize === val
+                      ? { backgroundColor: `${hex}22`, borderColor: hex, color: hex }
+                      : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }}
+                  >{label}</button>
+                ))}
               </div>
             </div>
           )}
-
-          {folderType === "read" && (
-  <div className="border-t border-[var(--border)] pt-4">
-    <p className="text-xs text-[var(--text-muted)] mb-3">ステータスラベル（省略可）</p>
-    <div className="grid grid-cols-2 gap-3 mb-4">
-      <div>
-        <label className="block text-xs text-[var(--text-muted)] mb-1">未完了ラベル</label>
-        <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} placeholder="未完了" className={`${inputClass} placeholder-[var(--text-dim)]`} />
-      </div>
-      <div>
-        <label className="block text-xs text-[var(--text-muted)] mb-1">完了ラベル</label>
-        <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} placeholder="完了" className={`${inputClass} placeholder-[var(--text-dim)]`} />
-      </div>
-    </div>
-    <label className="block text-xs text-[var(--text-muted)] mb-2">マスのサイズ</label>
-    <div className="grid grid-cols-3 gap-2">
-      {([["1", "1行"], ["2", "2行"], ["full", "全文"]] as const).map(([val, label]) => (
-        <button key={val} onClick={() => setItemSize(val)}
-          className="py-2.5 rounded-xl border text-sm font-medium transition-colors active:scale-95"
-          style={itemSize === val
-            ? { backgroundColor: `${ACCENT_COLORS[color].hex}22`, borderColor: ACCENT_COLORS[color].hex, color: ACCENT_COLORS[color].hex }
-            : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }}
-        >{label}</button>
-      ))}
-    </div>
-  </div>
-)}
 
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
         </div>

@@ -9,14 +9,35 @@ export const ACCENT_COLORS: Record<AccentColor, { label: string; hex: string }> 
   teal:   { label: "ティール",  hex: "#2ac3de" },
 };
 
+export type FolderPattern =
+  | "none"
+  | "books"
+  | "progress"
+  | "bubbles"
+  | "screen"
+  | "ebook"
+  | "openbook"
+  | "stars";
+
+export const FOLDER_PATTERNS: Record<FolderPattern, { label: string }> = {
+  none:      { label: "なし" },
+  books:     { label: "本棚" },
+  progress:  { label: "進捗バー" },
+  bubbles:   { label: "吹き出し" },
+  screen:    { label: "画面" },
+  ebook:     { label: "タブレット" },
+  openbook:  { label: "見開き" },
+  stars:     { label: "スター" },
+};
+
 export type SortOrder =
-  | "default"           // 登録順
-  | "reverse"           // 登録逆順
-  | "completed_first"   // 完了→未完了（完了タイプのみ）
-  | "incomplete_first"  // 未完了→完了（完了タイプのみ）
-  | "abc"               // あいうえお順（完了タイプ・テキストモードのみ）
-  | "progress_asc"      // 進捗順 低→高（進捗タイプのみ）
-  | "progress_desc";    // 進捗順 高→低（進捗タイプのみ）
+  | "default"
+  | "reverse"
+  | "completed_first"
+  | "incomplete_first"
+  | "abc"
+  | "progress_asc"
+  | "progress_desc";
 
 export interface Section {
   id: string;
@@ -49,6 +70,7 @@ export interface Folder {
   title: string;
   accentColor: AccentColor;
   type?: "progress" | "read";
+  pattern?: FolderPattern;
   defaultLabelUnread?: string;
   defaultLabelRead?: string;
   defaultUnit?: string;

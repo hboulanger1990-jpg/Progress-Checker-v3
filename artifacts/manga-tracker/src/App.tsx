@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { AccentColor, Folder, Work, Section } from "./types";
+import type { AccentColor, Folder, FolderPattern, Work, Section } from "./types";
 import { loadFolders, saveFolders, loadFoldersFromCloud, saveFoldersToCloud } from "./storage";
 import { supabase } from "./lib/supabase";
 import FolderListScreen from "./screens/FolderListScreen";
@@ -132,12 +132,12 @@ export default function App() {
   }
 
   // ---- Folder CRUD ----
-  function addFolder(title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") {
-    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, itemSize, works: [], updatedAt: Date.now() };
+  function addFolder(title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full", pattern: FolderPattern) {
+    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, itemSize, pattern, works: [], updatedAt: Date.now() };
     mutate((prev) => [f, ...prev]);
   }
-  function editFolder(id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full") {
-    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, itemSize, updatedAt: Date.now() } : f));
+  function editFolder(id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, itemSize: "1" | "2" | "full", pattern: FolderPattern) {
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, itemSize, pattern, updatedAt: Date.now() } : f));
   }
   function deleteFolder(id: string) {
     mutate((prev) => prev.filter((f) => f.id !== id));

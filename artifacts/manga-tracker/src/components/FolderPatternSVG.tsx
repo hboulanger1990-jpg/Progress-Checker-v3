@@ -25,6 +25,30 @@ export function FolderPatternSVG({ pattern, hex, preview = false }: Props) {
 
   const opacity = 0.13;
 
+  if (pattern === "chevron") {
+    const svgW = preview ? 80 : 150;
+    const svgH = preview ? 44 : 100;
+    const tw = preview ? 80 / 150 * 40 : 40;
+    const th = preview ? 44 / 100 * 12 : 12;
+    const id = `chevron-${hex.slice(1)}-${preview ? "p" : "c"}`;
+    return (
+      <g opacity={opacity}>
+        <defs>
+          <pattern id={id} x="0" y="0" width={tw} height={th} patternUnits="userSpaceOnUse">
+            <svg width={tw} height={th} viewBox="0 0 40 12">
+              <path
+                d="M0 6.172L6.172 0h5.656L0 11.828V6.172zm40 5.656L28.172 0h5.656L40 6.172v5.656zM6.172 12l12-12h3.656l12 12h-5.656L20 3.828 11.828 12H6.172zm12 0L20 10.172 21.828 12h-3.656z"
+                fill={hex}
+                fillRule="evenodd"
+              />
+            </svg>
+          </pattern>
+        </defs>
+        <rect x={0} y={0} width={svgW} height={svgH} fill={`url(#${id})`} />
+      </g>
+    );
+  }
+
   if (pattern === "books") return (
     <g opacity={opacity} fill={hex}>
       <rect x={s(90)} y={v(10)} width={s(10)} height={v(50)} rx={s(2)} />

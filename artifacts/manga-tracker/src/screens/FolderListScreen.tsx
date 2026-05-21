@@ -322,7 +322,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                             height: "100%",
                             pointerEvents: "none",
                           }}
-                          preserveAspectRatio="xMaxYMid meet"
+                          preserveAspectRatio="none"
                         >
                           <FolderPatternSVG pattern={pat} hex={hex} />
                         </svg>

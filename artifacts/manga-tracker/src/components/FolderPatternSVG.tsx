@@ -25,7 +25,7 @@ export function FolderPatternSVG({ pattern, hex, preview = false }: Props) {
 
   const opacity = 0.13;
 
-  if (pattern === "chevron") {
+if (pattern === "chevron") {
     const svgW = preview ? 80 : 150;
     const svgH = preview ? 44 : 100;
     const tw = preview ? 80 / 150 * 40 : 40;

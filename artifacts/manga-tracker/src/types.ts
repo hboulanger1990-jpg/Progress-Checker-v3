@@ -18,7 +18,9 @@ export type FolderPattern =
   | "ebook"
   | "openbook"
   | "stars"
-  | "chevron";
+  | "chevron"
+  | "jigsaw"
+  | "hexagon";
 
 export const FOLDER_PATTERNS: Record<FolderPattern, { label: string }> = {
   none:      { label: "なし" },
@@ -30,6 +32,8 @@ export const FOLDER_PATTERNS: Record<FolderPattern, { label: string }> = {
   openbook:  { label: "見開き" },
   stars:     { label: "スター" },
   chevron:   { label: "シェブロン" },
+  jigsaw:   { label: "ジグソー" },
+  hexagon:   { label: "ヘキサゴン" },
 };
 
 export type SortOrder =

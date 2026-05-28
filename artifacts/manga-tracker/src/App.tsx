@@ -24,8 +24,8 @@ export default function App() {
   const [locked, setLocked] = useState<boolean>(() => {
     return localStorage.getItem(LOCK_KEY) === "true";
   });
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    return (localStorage.getItem(THEME_KEY) as "dark" | "light") ?? "dark";
+  const [theme, setTheme] = useState<"dark" | "light" | "sepia">(() => {
+    return (localStorage.getItem(THEME_KEY) as "dark" | "light" | "sepia") ?? "dark";
   });
   const initialLoadDone = useRef(false);
 
@@ -281,7 +281,7 @@ export default function App() {
           user={user}
           locked={locked}
           theme={theme}
-          onToggleTheme={() => setTheme((v) => v === "dark" ? "light" : "dark")}
+          onToggleTheme={() => setTheme((v) => v === "dark" ? "light" : v === "light" ? "sepia" : "dark")}
           onToggleLock={() => setLocked((v) => !v)}
           onSignIn={signInWithGoogle}
           onSignOut={signOut}

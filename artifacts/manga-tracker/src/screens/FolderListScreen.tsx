@@ -7,7 +7,7 @@ import BackupModal from "../modals/BackupModal";
 import { FolderPatternSVG } from "../components/FolderPatternSVG";
 import type { User } from "@supabase/supabase-js";
 
-function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): string {
+function mixWithGray(hex: string, theme: "dark" | "light" | "sepia", ratio: number): string {
   const gray = theme === "dark" ? 0x78 : 0xbe;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -22,7 +22,7 @@ interface Props {
   folders: Folder[];
   user: User | null;
   locked: boolean;
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "sepia";
   onToggleTheme: () => void;
   onToggleLock: () => void;
   onSignIn: () => void;
@@ -125,7 +125,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
       <header className="sticky top-0 z-10 bg-[var(--bg-base)]/95 backdrop-blur-md border-b border-[var(--border-dim)] px-4 pt-2 pb-3">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl font-bold text-[var(--text-primary)]">Progress Checker</h1>
+            <h1 className="text-xl font-bold" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>Progress Checker</h1>
             <div className="flex items-center gap-2">
               {/* ロックボタン */}
               <button
@@ -196,7 +196,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                       onClick={() => { onToggleTheme(); setShowUserMenu(false); }}
                       className="w-full px-4 py-3 text-left text-sm text-[var(--text-sub)] hover:bg-[var(--bg-surface)] transition-colors flex items-center gap-2"
                     >
-                      <SunMoon size={16} /> ライト／ダーク
+                      <SunMoon size={16} /> モード切替
                     </button>
                     <div className="border-t border-[var(--border)]" />
                     <button
@@ -252,6 +252,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
             <div className="grid grid-cols-2 gap-2">
               {filtered.map((folder) => {
                 const hex = ACCENT_COLORS[folder.accentColor].hex;
+                const bgSepia = ACCENT_COLORS[folder.accentColor].bgSepia;
                 const isChecked = selectedIds.has(folder.id);
                 const pat = (folder.pattern ?? "none") as FolderPattern;
                 const workCount = folder.works?.length ?? 0;
@@ -280,7 +281,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                       className="w-full text-left active:scale-[0.97] transition-all rounded-2xl overflow-hidden"
                       style={{
                         minHeight: "100px",
-                        backgroundColor: "var(--bg-surface)",
+                        backgroundColor: theme === "sepia" ? bgSepia : "var(--bg-surface)",
                         border: isChecked
                           ? "1.5px solid #7aa2f7"
                           : `1px solid ${hex}44`,
@@ -436,7 +437,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
             <button
               onClick={() => setShowAdd(true)}
               className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-              style={{ backgroundColor: mixWithGray("#7aa2f7", theme, 0.3), color: "var(--bg-base)", boxShadow: "0 4px 24px #7aa2f733" }}
+              style={{ backgroundColor: theme === "sepia" ? "#7aa2f7" : mixWithGray("#7aa2f7", theme, 0.3), color: "var(--bg-base)", boxShadow: "0 4px 24px #7aa2f733" }}
             >
               <Plus size={20} /><span>新しいフォルダを追加</span>
             </button>

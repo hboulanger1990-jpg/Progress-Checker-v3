@@ -1,12 +1,12 @@
 export type AccentColor = "blue" | "green" | "red" | "purple" | "yellow" | "teal";
 
-export const ACCENT_COLORS: Record<AccentColor, { label: string; hex: string }> = {
-  blue:   { label: "ブルー",    hex: "#7aa2f7" },
-  green:  { label: "グリーン",  hex: "#9ece6a" },
-  red:    { label: "レッド",    hex: "#f7768e" },
-  purple: { label: "パープル",  hex: "#bb9af7" },
-  yellow: { label: "イエロー",  hex: "#e0af68" },
-  teal:   { label: "ティール",  hex: "#2ac3de" },
+export const ACCENT_COLORS: Record<AccentColor, { label: string; hex: string; bgSepia: string }> = {
+  blue:   { label: "ブルー",    hex: "#7aa2f7", bgSepia: "#c5ddf5" },
+  green:  { label: "グリーン",  hex: "#9ece6a", bgSepia: "#c6e1be" },
+  red:    { label: "レッド",    hex: "#f7768e", bgSepia: "#f5cec1" },
+  purple: { label: "パープル",  hex: "#bb9af7", bgSepia: "#d0c2f3" },
+  yellow: { label: "イエロー",  hex: "#e0af68", bgSepia: "#f8d3ad" },
+  teal:   { label: "ティール",  hex: "#2ac3de", bgSepia: "#b8e0d8" },
 };
 
 export type FolderPattern =

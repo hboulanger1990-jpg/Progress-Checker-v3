@@ -7,7 +7,7 @@ import WorkModal from "../modals/WorkModal";
 import SectionModal from "../modals/SectionModal";
 
 /** hex カラーにグレーを mix して彩度を落とした色を返す（ratio=0.0 で元色、1.0 でグレー） */
-function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): string {
+function mixWithGray(hex: string, theme: "dark" | "light" | "sepia", ratio: number): string {
   const gray = theme === "dark" ? 0x78 : 0xbe;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -22,7 +22,7 @@ interface Props {
   folder: Folder;
   work: Work;
   locked: boolean;
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "sepia";
   onToggleLock: () => void;
   onBack: () => void;
   onEditWork: (updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) => void;
@@ -92,6 +92,7 @@ export default function WorkDetailScreen({
   const touchEndHandler = useRef<((e: TouchEvent) => void) | null>(null);
 
   const accentHex = ACCENT_COLORS[work.accentColor].hex;
+  const accentBgSepia = ACCENT_COLORS[work.accentColor].bgSepia;
   const folderHex = ACCENT_COLORS[folder.accentColor].hex;
   const { read, total, percent } = calcWorkProgress(work.sections);
   const secLabel = work.sectionLabel || "セクション";
@@ -404,7 +405,7 @@ export default function WorkDetailScreen({
               <ArrowLeft size={20} /><span>戻る</span>
             </button>
             <div className="flex-1 min-w-0">
-              <h1 className="font-bold text-[var(--text-primary)] text-base leading-tight truncate">{work.title}</h1>
+              <h1 className="font-bold text-base leading-tight truncate" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>{work.title}</h1>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {/* ロックボタン */}
@@ -509,10 +510,10 @@ export default function WorkDetailScreen({
             <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: accentHex }} />
             {work.labelRead} {read} / {total}{work.unit}
           </span>
-          <span className="text-xs font-bold" style={{ color: mixWithGray(accentHex, theme, 0.3) }}>{percent}%</span>
+          <span className="text-xs font-bold" style={{ color: theme === "sepia" ? accentHex : mixWithGray(accentHex, theme, 0.3) }}>{percent}%</span>
         </div>
         <div className="h-1 bg-[var(--bg-surface)] rounded-full overflow-hidden mb-2">
-          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: mixWithGray(accentHex, theme, 0.3) }} />
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: theme === "sepia" ? accentHex : mixWithGray(accentHex, theme, 0.3) }} />
         </div>
         <div className="flex gap-3 text-xs text-[var(--text-muted)]">
           <button
@@ -816,13 +817,13 @@ export default function WorkDetailScreen({
                                   isThisSectionItemSelect
                                     ? isItemChecked
                                       ? isRead
-                                        ? { backgroundColor: mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: "var(--bg-base)", outline: "2px solid var(--bg-base)66" }
+                                        ? { backgroundColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: "var(--bg-base)", outline: "2px solid var(--bg-base)66" }
                                         : { backgroundColor: "#7aa2f722", color: "var(--text-primary)", borderColor: "#7aa2f7" }
                                       : isRead
-                                        ? { backgroundColor: mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: mixWithGray(accentHex, theme, 0.3) }
+                                        ? { backgroundColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3) }
                                         : { backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", borderColor: "var(--border)" }
                                     : isRead
-                                      ? { backgroundColor: mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: mixWithGray(accentHex, theme, 0.3) }
+                                      ? { backgroundColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3) }
                                       : { backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", borderColor: "var(--border)" }
                                 }
                               >
@@ -877,7 +878,7 @@ export default function WorkDetailScreen({
                             <button key={num} id={`item-${section.id}-${num}`}
                               onClick={() => handleToggle(section.id, num)}
                               className={`border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation transition-all duration-100 ${locked ? "" : "active:scale-90"}`}
-                              style={isRead ? { backgroundColor: mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: mixWithGray(accentHex, theme, 0.3) } : { backgroundColor: "var(--bg-surface)", color: locked ? "var(--border)" : "var(--text-dim)", borderColor: "var(--border)" }}
+                              style={isRead ? { backgroundColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3) } : { backgroundColor: "var(--bg-surface)", color: locked ? "var(--border)" : "var(--text-dim)", borderColor: "var(--border)" }}
                             >{num}</button>
                           );
                         })}

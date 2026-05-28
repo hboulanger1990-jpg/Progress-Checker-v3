@@ -6,7 +6,7 @@ import { calcWorkProgress } from "../storage";
 import WorkModal from "../modals/WorkModal";
 
 /** hex カラーにグレーを mix して彩度を落とした色を返す（ratio=0.0 で元色、1.0 でグレー） */
-function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): string {
+function mixWithGray(hex: string, theme: "dark" | "light" | "sepia", ratio: number): string {
   const gray = theme === "dark" ? 0x78 : 0xbe;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -20,7 +20,7 @@ function mixWithGray(hex: string, theme: "dark" | "light", ratio: number): strin
 interface Props {
   folder: Folder;
   locked: boolean;
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "sepia";
   onToggleLock: () => void;
   onBack: () => void;
   onSelect: (w: Work) => void;
@@ -283,7 +283,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
             <button onClick={onBack} className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2" style={{ color: folderHex }}>
               <ArrowLeft size={20} /><span>戻る</span>
             </button>
-            <h1 className="flex-1 font-bold text-base truncate" style={{ color: "var(--text-primary)" }}>{folder.title}</h1>
+            <h1 className="flex-1 font-bold text-base truncate" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>{folder.title}</h1>
             <div className="flex items-center gap-2 shrink-0">
               {/* ロックボタン */}
               <button
@@ -410,10 +410,10 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
             <div className="mb-3" style={selectMode ? { opacity: 0, pointerEvents: "none" } : {}}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>完了 {completedWorks} / {totalWorks}</span>
-                <span className="text-xs font-bold" style={{ color: mixWithGray(folderHex, theme, 0.3) }}>{pct}%</span>
+                <span className="text-xs font-bold" style={{ color: theme === "sepia" ? folderHex : mixWithGray(folderHex, theme, 0.3) }}>{pct}%</span>
               </div>
               <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bg-surface)" }}>
-                <div className="h-full rounded-full transition-all duration-200" style={{ width: `${pct}%`, backgroundColor: mixWithGray(folderHex, theme, 0.3) }} />
+                <div className="h-full rounded-full transition-all duration-200" style={{ width: `${pct}%`, backgroundColor: theme === "sepia" ? folderHex : mixWithGray(folderHex, theme, 0.3) }} />
               </div>
             </div>
           );
@@ -471,6 +471,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
             )}
             {sortedFiltered.map((work) => {
               const hex = ACCENT_COLORS[work.accentColor].hex;
+              const bgSepia = ACCENT_COLORS[work.accentColor].bgSepia;
               const done = !!work.completed;
               const isSelected = selectedId === work.id;
               const isChecked = selectedIds.has(work.id);
@@ -492,8 +493,8 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
                     className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
                     style={{
-                      backgroundColor: done ? mixWithGray(hex, theme, 0.3) : "var(--bg-surface)",
-                      borderColor: isChecked ? (done ? "#1a1b26" : (theme === "light" ? "#1a1b26" : "#7aa2f7")) : isSelected ? "#7aa2f7" : done ? mixWithGray(hex, theme, 0.3) : "var(--border)",
+                      backgroundColor: done ? (theme === "sepia" ? bgSepia : mixWithGray(hex, theme, 0.3)) : "var(--bg-surface)",
+                      borderColor: isChecked ? (done ? "#1a1b26" : (theme === "light" ? "#1a1b26" : "#7aa2f7")) : isSelected ? "#7aa2f7" : done ? (theme === "sepia" ? bgSepia : mixWithGray(hex, theme, 0.3)) : "var(--border)",
                       outline: isChecked ? (done ? "2px solid #1a1b2666" : (theme === "light" ? "2px solid #1a1b2644" : "2px solid #7aa2f744")) : "none"
                     }}
                   >
@@ -580,6 +581,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
             {sortedFiltered.map((work) => {
               const { read, total, percent } = calcWorkProgress(work.sections);
               const hex = ACCENT_COLORS[work.accentColor].hex;
+              const bgSepia = ACCENT_COLORS[work.accentColor].bgSepia;
               const isSelected = selectedId === work.id;
               const isChecked = selectedIds.has(work.id);
               return (
@@ -613,11 +615,11 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                         <span className="font-bold text-sm leading-tight truncate" style={{ color: "var(--text-primary)" }}>{work.title}</span>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs" style={{ color: "var(--text-muted)" }}>{read}/{total}{work.unit}</span>
-                          <span className="text-xs font-bold" style={{ color: mixWithGray(hex, theme, 0.3) }}>{percent}%</span>
+                          <span className="text-xs font-bold" style={{ color: theme === "sepia" ? hex : mixWithGray(hex, theme, 0.3) }}>{percent}%</span>
                         </div>
                       </div>
                       <div className="h-1 rounded-full overflow-hidden mb-1.5" style={{ backgroundColor: "var(--bg-base)" }}>
-                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${percent}%`, backgroundColor: mixWithGray(hex, theme, 0.3) }} />
+                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${percent}%`, backgroundColor: theme === "sepia" ? hex : mixWithGray(hex, theme, 0.3) }} />
                       </div>
                       {work.tags && work.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
@@ -737,7 +739,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
           style={{ background: `linear-gradient(to top, var(--bg-base) 60%, transparent)` }}>
           <div className="max-w-lg mx-auto">
             <button onClick={() => setShowAdd(true)} className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-              style={{ backgroundColor: mixWithGray(folderHex, theme, 0.3), color: "var(--bg-base)", boxShadow: `0 4px 24px ${folderHex}33` }}>
+              style={{ backgroundColor: theme === "sepia" ? folderHex : mixWithGray(folderHex, theme, 0.3), color: "var(--bg-base)", boxShadow: `0 4px 24px ${folderHex}33` }}>
               <Plus size={20} /><span>新しい作品を追加</span>
             </button>
           </div>

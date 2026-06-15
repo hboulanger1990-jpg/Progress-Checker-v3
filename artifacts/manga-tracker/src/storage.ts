@@ -74,3 +74,25 @@ export function importData(json: string): Folder[] | null {
     return null;
   }
 }
+
+// ---- Stock（Supabase） ----
+import type { StockItem } from "./types";
+
+export async function loadStockFromCloud(userId: string): Promise<StockItem[] | null> {
+  const { data, error } = await supabase
+    .from("stock")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.data as StockItem[];
+}
+
+export async function saveStockToCloud(userId: string, items: StockItem[]): Promise<void> {
+  await supabase
+    .from("stock")
+    .upsert(
+      { user_id: userId, data: items, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+}

@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import {
   Plus, X, Package,
   LockKeyhole, LockKeyholeOpen, Snail, User as UserIcon,
-  LogOut, SunMoon, CloudUpload, BookOpen, Pencil, Trash2,
+  LogOut, SunMoon, BookOpen, Pencil, Trash2,
 } from "lucide-react";
 import type { StockItem, StockRefill, StockAccentColor } from "../types";
+import { loadStockFromCloud, saveStockToCloud } from "../storage";
 import type { User } from "@supabase/supabase-js";
 
 // ---------- アクセントカラー ----------
@@ -489,14 +490,35 @@ export default function StockScreen({ user, locked, theme, onToggleTheme, onTogg
   const [detailTarget, setDetailTarget] = useState<StockItem | null>(null);
 
   useEffect(() => {
-    const loaded = loadStockItems();
-    const updated = loaded.map(applyDailyConsumption);
-    setItems(updated);
-    saveStockItems(updated);
-  }, []);
+    async function load() {
+      let loaded: StockItem[] = [];
+      if (user) {
+        const cloud = await loadStockFromCloud(user.id);
+        if (cloud) {
+          loaded = cloud;
+        } else {
+          // クラウドにデータなし → localStorageから移行
+          loaded = loadStockItems();
+          if (loaded.length > 0) await saveStockToCloud(user.id, loaded);
+        }
+      } else {
+        loaded = loadStockItems();
+      }
+      const updated = loaded.map(applyDailyConsumption);
+      setItems(updated);
+      saveStockItems(updated);
+      if (user) await saveStockToCloud(user.id, updated);
+    }
+    load();
+  }, [user]);
 
   function mutate(updater: (prev: StockItem[]) => StockItem[]) {
-    setItems((prev) => { const next = updater(prev); saveStockItems(next); return next; });
+    setItems((prev) => {
+      const next = updater(prev);
+      saveStockItems(next);
+      if (user) saveStockToCloud(user.id, next);
+      return next;
+    });
   }
 
   function addItem(data: Omit<StockItem, "id" | "lastUpdated" | "history">) {

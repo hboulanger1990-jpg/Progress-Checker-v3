@@ -32,7 +32,7 @@ export const FOLDER_PATTERNS: Record<FolderPattern, { label: string }> = {
   openbook:  { label: "見開き" },
   stars:     { label: "スター" },
   chevron:   { label: "シェブロン" },
-  jigsaw:   { label: "ジグソー" },
+  jigsaw:    { label: "ジグソー" },
   hexagon:   { label: "ヘキサゴン" },
 };
 
@@ -83,4 +83,27 @@ export interface Folder {
   itemSize?: "1" | "2" | "full";
   works: Work[];
   updatedAt: number;
+}
+
+// ---- Stock ----
+
+export type StockAccentColor = "blue" | "green" | "red";
+
+export interface StockRefill {
+  id: string;
+  date: number;       // timestamp
+  amount: number;     // 補充量（単位はアイテムのunit）
+}
+
+export interface StockItem {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;         // 現在の残量
+  consumeAmount: number;    // 「〇日に〇消費」の〇消費
+  consumeDays: number;      // 「〇日に〇消費」の〇日
+  capacity?: number;        // 任意：バー表示の基準
+  accentColor?: StockAccentColor; // カテゴリカラー（省略時はblue）
+  lastUpdated: number;      // 最後に残量を計算した日のtimestamp（日単位で減算するための基準）
+  history: StockRefill[];
 }

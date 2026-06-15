@@ -1,4 +1,4 @@
-import { Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut, SunMoon } from "lucide-react";
+import { Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut, SunMoon, Package } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { AccentColor, Folder, FolderPattern } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -33,9 +33,10 @@ interface Props {
   onDelete: (id: string) => void;
   onReorder: (newFolders: Folder[]) => void;
   onImport: (data: Folder[]) => void;
+  onSwitchToStock: () => void;
 }
 
-export default function FolderListScreen({ folders, user, locked, theme, onToggleTheme, onToggleLock, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onReorder, onImport }: Props) {
+export default function FolderListScreen({ folders, user, locked, theme, onToggleTheme, onToggleLock, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onReorder, onImport, onSwitchToStock }: Props) {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Folder | null>(null);
@@ -176,6 +177,13 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                     className="absolute right-0 top-11 z-30 bg-[var(--bg-overlay)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden min-w-[160px]"
                     onClick={(e) => e.stopPropagation()}
                   >
+                    <button
+                      onClick={() => { onSwitchToStock(); setShowUserMenu(false); }}
+                      className="w-full px-4 py-3 text-left text-sm text-[var(--text-sub)] hover:bg-[var(--bg-surface)] transition-colors flex items-center gap-2"
+                    >
+                      <Package size={16} /> Stock
+                    </button>
+                    <div className="border-t border-[var(--border)]" />
                     {user ? (
                       <button
                         onClick={() => { onSignOut(); setShowUserMenu(false); }}

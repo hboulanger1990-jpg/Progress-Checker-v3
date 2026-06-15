@@ -5,6 +5,7 @@ import { supabase } from "./lib/supabase";
 import FolderListScreen from "./screens/FolderListScreen";
 import WorkListScreen from "./screens/WorkListScreen";
 import WorkDetailScreen from "./screens/WorkDetailScreen";
+import StockScreen from "./screens/StockScreen";
 import type { User } from "@supabase/supabase-js";
 
 type View =
@@ -27,6 +28,7 @@ export default function App() {
   const [theme, setTheme] = useState<"dark" | "light" | "sepia">(() => {
     return (localStorage.getItem(THEME_KEY) as "dark" | "light" | "sepia") ?? "dark";
   });
+  const [appMode, setAppMode] = useState<"progress" | "stock">("progress");
   const initialLoadDone = useRef(false);
 
   useEffect(() => {
@@ -275,7 +277,19 @@ export default function App() {
 
   return (
     <div style={{ opacity: fading ? 0 : 1, transition: "opacity 0.11s ease" }}>
-      {view.screen === "folders" && (
+      {appMode === "stock" && (
+        <StockScreen
+          user={user}
+          locked={locked}
+          theme={theme}
+          onToggleTheme={() => setTheme((v) => v === "dark" ? "light" : v === "light" ? "sepia" : "dark")}
+          onToggleLock={() => setLocked((v) => !v)}
+          onSignIn={signInWithGoogle}
+          onSignOut={signOut}
+          onSwitchToProgress={() => setAppMode("progress")}
+        />
+      )}
+      {appMode === "progress" && view.screen === "folders" && (
         <FolderListScreen
           folders={folders}
           user={user}
@@ -291,9 +305,10 @@ export default function App() {
           onDelete={deleteFolder}
           onReorder={reorderFolders}
           onImport={importHandler}
+          onSwitchToStock={() => setAppMode("stock")}
         />
       )}
-      {view.screen === "works" && currentFolder && (
+      {appMode === "progress" && view.screen === "works" && currentFolder && (
         <WorkListScreen
           folder={currentFolder}
           locked={locked}
@@ -309,7 +324,7 @@ export default function App() {
           onSetSortOrder={(order) => setFolderWorksSortOrder(currentFolder.id, order)}
         />
       )}
-      {view.screen === "detail" && currentFolder && currentWork && (
+      {appMode === "progress" && view.screen === "detail" && currentFolder && currentWork && (
         <WorkDetailScreen
           folder={currentFolder}
           work={currentWork}

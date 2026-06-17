@@ -96,3 +96,37 @@ export async function saveStockToCloud(userId: string, items: StockItem[]): Prom
       { onConflict: "user_id" }
     );
 }
+
+import type { VocabEntry } from "./screens/VocabScreen"; // パスは実際の配置に合わせて調整してください
+
+export async function loadVocabFromCloud(userId: string): Promise<VocabEntry[] | null> {
+  const { data, error } = await supabase
+    .from("vocab")
+    .select("data")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("loadVocabFromCloud error:", error);
+    return null;
+  }
+  if (!data) return null;
+  return data.data as VocabEntry[];
+}
+
+export async function saveVocabToCloud(userId: string, entries: VocabEntry[]): Promise<void> {
+  const { error } = await supabase
+    .from("vocab")
+    .upsert(
+      {
+        user_id: userId,
+        data: entries,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (error) {
+    console.error("saveVocabToCloud error:", error);
+  }
+}

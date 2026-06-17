@@ -1,4 +1,4 @@
-import { Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut, SunMoon, Package } from "lucide-react";
+import { Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut, SunMoon, Package, BookMarked } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { AccentColor, Folder, FolderPattern } from "../types";
 import { ACCENT_COLORS } from "../types";
@@ -34,9 +34,10 @@ interface Props {
   onReorder: (newFolders: Folder[]) => void;
   onImport: (data: Folder[]) => void;
   onSwitchToStock: () => void;
+  onSwitchToVocab: () => void;
 }
 
-export default function FolderListScreen({ folders, user, locked, theme, onToggleTheme, onToggleLock, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onReorder, onImport, onSwitchToStock }: Props) {
+export default function FolderListScreen({ folders, user, locked, theme, onToggleTheme, onToggleLock, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onReorder, onImport, onSwitchToStock, onSwitchToVocab }: Props) {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Folder | null>(null);
@@ -182,6 +183,17 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                       className="w-full px-4 py-3 text-left text-sm text-[var(--text-sub)] hover:bg-[var(--bg-surface)] transition-colors flex items-center gap-2"
                     >
                       <Package size={16} /> Stock
+                    </button>
+                    <button
+                      onClick={() => { onSwitchToVocab(); setShowUserMenu(false); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "8px 12px", borderRadius: 8, border: "none",
+                        background: "transparent", color: "var(--text-primary)",
+                        fontSize: 14, cursor: "pointer", width: "100%", textAlign: "left",
+                      }}
+                    >
+                      <BookMarked size={16} /> 語彙ノート
                     </button>
                     <div className="border-t border-[var(--border)]" />
                     {user ? (

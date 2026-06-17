@@ -6,6 +6,7 @@ import FolderListScreen from "./screens/FolderListScreen";
 import WorkListScreen from "./screens/WorkListScreen";
 import WorkDetailScreen from "./screens/WorkDetailScreen";
 import StockScreen from "./screens/StockScreen";
+import VocabScreen from "./screens/VocabScreen";
 import type { User } from "@supabase/supabase-js";
 
 type View =
@@ -28,7 +29,7 @@ export default function App() {
   const [theme, setTheme] = useState<"dark" | "light" | "sepia">(() => {
     return (localStorage.getItem(THEME_KEY) as "dark" | "light" | "sepia") ?? "dark";
   });
-  const [appMode, setAppMode] = useState<"progress" | "stock">("progress");
+  const [appMode, setAppMode] = useState<"progress" | "stock" | "vocab">("progress");
   const initialLoadDone = useRef(false);
 
   useEffect(() => {
@@ -289,6 +290,14 @@ export default function App() {
           onSwitchToProgress={() => setAppMode("progress")}
         />
       )}
+      {appMode === "vocab" && (
+       <VocabScreen
+         user={user}
+         theme={theme}
+         onToggleTheme={() => setTheme((v) => v === "dark" ? "light" : v === "light" ? "sepia" : "dark")}
+         onSwitchToProgress={() => setAppMode("progress")}
+        />
+      )}
       {appMode === "progress" && view.screen === "folders" && (
         <FolderListScreen
           folders={folders}
@@ -306,6 +315,7 @@ export default function App() {
           onReorder={reorderFolders}
           onImport={importHandler}
           onSwitchToStock={() => setAppMode("stock")}
+          onSwitchToVocab={() => setAppMode("vocab")}
         />
       )}
       {appMode === "progress" && view.screen === "works" && currentFolder && (

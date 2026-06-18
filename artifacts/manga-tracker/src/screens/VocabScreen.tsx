@@ -40,7 +40,7 @@ function saveVocab(entries: VocabEntry[]) {
 const SUPABASE_URL = "https://ckdsmlskfkwoodbuobhs.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_5E0KFXPHVgjbm59GoLs1-Q_EUPoQ72b";
 
-async function fetchMeaningFromAI(word: string): Promise<string> {
+async function fetchMeaningFromAI(word: string): Promise<{ meaning: string; reading: string }> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/get-meaning`, {
     method: "POST",
     headers: {
@@ -51,7 +51,7 @@ async function fetchMeaningFromAI(word: string): Promise<string> {
   });
   const data = await res.json();
   if (!data.meaning) throw new Error(data.error || "no meaning returned");
-  return data.meaning;
+  return { meaning: data.meaning, reading: data.reading || "" };
 }
 
 // ---- ソート ----
@@ -176,8 +176,9 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
     setAiLoading(true);
     setAiHint("");
     try {
-      const meaning = await fetchMeaningFromAI(form.word.trim());
-      setForm(f => ({ ...f, meaning }));
+      const { meaning, reading } = await fetchMeaningFromAI(form.word.trim());
+      // よみがなはAIが取得できた場合のみ上書きする（取得できなかった場合は手入力済みの値を残す）
+      setForm(f => ({ ...f, meaning, reading: reading || f.reading }));
       setAiHint("✓ 取得しました。編集できます。");
     } catch {
       setAiHint("取得できませんでした。手動で入力してください。");
@@ -382,12 +383,13 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
                 <textarea style={{ ...styles.input, ...styles.textarea, flex: 1 }} value={form.meaning}
                   placeholder="ここに意味を入力、またはAIで取得"
                   onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} />
-                <button style={styles.aiBtn} onClick={handleAI} disabled={aiLoading} aria-label="AIで意味を取得">
+                <button style={styles.aiBtn} onClick={handleAI} disabled={aiLoading} aria-label="AIで意味とよみがなを取得">
                   {aiLoading ? <Loader2 size={13} style={{ animation: "spin 0.8s linear infinite" }} /> : <Sparkles size={13} />}
                   <span>{aiLoading ? "取得中" : "AI取得"}</span>
                 </button>
               </div>
               {aiHint && <div style={styles.aiHint}>{aiHint}</div>}
+              {!aiHint && <div style={styles.aiHint}>意味とよみがなを取得します（取得できた場合はよみがな欄も上書きされます）</div>}
             </FormGroup>
 
             <FormGroup label="登場作品">

@@ -50,7 +50,11 @@ serve(async (req) => {
     if (!rawText) throw new Error("no response: " + JSON.stringify(data));
 
     // Geminiが ```json ... ``` のようにコードブロックで返してくることがあるので除去してからパース
-    const cleaned = rawText.replace(/^```json\s*|^```\s*|```$/g, "").trim();
+    // また、Thinking機能の思考ブロック（THOUGHT:〜で始まる行）が漏れてくることがあるので除去する
+    const cleaned = rawText
+      .replace(/^```json\s*|^```\s*|```$/gm, "")
+      .replace(/THOUGHT:[\s\S]*?(?=\{)/i, "")
+      .trim();
 
     let reading = "";
     let meaning = "";

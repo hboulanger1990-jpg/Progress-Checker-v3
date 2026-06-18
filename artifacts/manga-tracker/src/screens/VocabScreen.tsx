@@ -207,7 +207,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
   // 別タブ（スマホでは別アプリ）でGoogleレンズを開く。読み取り結果はLens側で
   // コピーしてもらい、このアプリに戻って用例欄に貼り付けてもらう想定。
   function openGoogleLens() {
-    window.open("https://lens.google.com/", "_blank", "noopener,noreferrer");
+    window.open("https://google.com/", "_blank", "noopener,noreferrer");
   }
 
   // ---- モーダル ----
@@ -368,7 +368,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           {(["word", "meaning", "all"] as const).map((v, i) => (
             <button key={v} style={{ ...styles.segBtn, ...(density === v ? styles.segBtnActive : {}), ...(i > 0 ? { borderLeft: "0.5px solid var(--border)" } : {}) }}
               onClick={() => { setDensity(v); setExpanded(null); }}>
-              {v === "word" ? "単語" : v === "meaning" ? "＋意味" : "すべて"}
+              {v === "word" ? "単語" : v === "meaning" ? "＋よみがな" : "＋意味"}
             </button>
           ))}
         </div>
@@ -474,7 +474,23 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
         </div>
       )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .vocab-preview-meaning {
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 1;
+          line-clamp: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        @media (max-width: 640px) {
+          .vocab-preview-meaning {
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -492,11 +508,16 @@ interface CardProps {
 }
 
 function EntryCard({ entry: e, density, viewMode, expanded, onToggle, onEdit, onDelete, onToggleFavorite }: CardProps) {
-  const showReadingInline = (density === "word" || density === "all") && e.reading;
-  const showMeaningAlways = (density === "meaning" || density === "all") && e.meaning;
+  // 折り畳み中の常時表示
+  // 単語:      単語のみ
+  // ＋よみがな: 単語＋よみがな  (density === "meaning")
+  // ＋意味:    単語＋よみがな＋意味  (density === "all")
+  const showReadingInline = (density === "meaning" || density === "all" || (density === "word" && expanded)) && e.reading;
+  const showMeaningPreview = density === "all" && e.meaning && !expanded;
 
-  const expandShowReading = density === "meaning" && e.reading;
-  const expandShowMeaning = density === "word" && e.meaning;
+  // 展開時の追加表示（常時表示に出ていないものだけ）
+  const expandShowReading = false; // よみがなは常にインライン表示するので詳細セクションには出さない
+  const expandShowMeaning = !!e.meaning;
   const expandShowExample = !!e.example;
   const expandShowWork = viewMode === "kana" && !!e.work;
   const hasDetail = expandShowReading || expandShowMeaning || expandShowExample || expandShowWork;
@@ -512,7 +533,7 @@ function EntryCard({ entry: e, density, viewMode, expanded, onToggle, onEdit, on
             <span style={styles.word}>{e.word}</span>
             {showReadingInline && <span style={styles.reading}>{e.reading}</span>}
           </div>
-          {showMeaningAlways && <div style={styles.previewMeaning}>{e.meaning}</div>}
+          {showMeaningPreview && <div className="vocab-preview-meaning" style={styles.previewMeaning}>{e.meaning}</div>}
         </div>
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
           <button data-action="favorite" style={{ ...styles.actBtn, ...(e.favorite ? styles.actBtnFav : {}) }}
@@ -582,7 +603,7 @@ const styles: Record<string, React.CSSProperties> = {
   cardExpanded: { borderColor: "var(--text-dim)" },
   word: { fontSize: 16, fontWeight: 500, color: "var(--text-primary)" },
   reading: { fontSize: 13, color: "var(--text-muted)" },
-  previewMeaning: { fontSize: 13, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  previewMeaning: { fontSize: 13, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.5 },
   detail: { marginTop: 10, paddingTop: 10, borderTop: "0.5px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 },
   detailLabel: { fontSize: 11, fontWeight: 500, color: "var(--text-dim)", letterSpacing: "0.04em", marginBottom: 2 },
   detailText: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 },

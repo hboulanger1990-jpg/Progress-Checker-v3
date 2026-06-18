@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload } from "lucide-react";
+import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { loadVocabFromCloud, saveVocabToCloud } from "../storage";
 
@@ -57,6 +57,18 @@ async function fetchMeaningFromAI(word: string): Promise<string> {
 // ---- ソート ----
 function kanaSort(a: VocabEntry, b: VocabEntry) {
   return (a.reading || a.word).localeCompare(b.reading || b.word, "ja");
+}
+
+// ---- 50音グルーピング用キー ----
+// Googleレンズ等からの貼り付けで紛れ込みやすい不可視文字（ゼロ幅スペース等）や
+// 全角/半角の差異を吸収してから先頭1文字を取る。これにより見た目が同じ語が
+// 別グループに分裂してしまう（同じ語が増殖して見える）のを防ぐ。
+function normalizeKanaKey(raw: string): string {
+  const cleaned = raw
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, "")
+    .trim();
+  return cleaned.charAt(0) || "#";
 }
 
 // ---- CSVエクスポート ----
@@ -174,6 +186,13 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
     }
   }
 
+  // ---- Googleレンズ起動 ----
+  // 別タブ（スマホでは別アプリ）でGoogleレンズを開く。読み取り結果はLens側で
+  // コピーしてもらい、このアプリに戻って用例欄に貼り付けてもらう想定。
+  function openGoogleLens() {
+    window.open("https://lens.google.com/", "_blank", "noopener,noreferrer");
+  }
+
   // ---- モーダル ----
   function openAdd() {
     setEditId(null);
@@ -240,13 +259,16 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
       ));
     } else {
       const sorted = [...filtered].sort(kanaSort);
-      const sections: { kana: string; entries: VocabEntry[] }[] = [];
+      // 直前セクションとの隣接だけで束ねると、ソート結果がわずかにブレた場合
+      // （不可視文字や正規化の違いなど）に同じ語が複数セクションに分裂して
+      // 「増殖したように見える」原因になるため、キーごとにMapで束ねる。
+      const groupMap = new Map<string, VocabEntry[]>();
       sorted.forEach(e => {
-        const k = (e.reading || e.word).charAt(0);
-        const last = sections[sections.length - 1];
-        if (!last || last.kana !== k) sections.push({ kana: k, entries: [e] });
-        else last.entries.push(e);
+        const k = normalizeKanaKey(e.reading || e.word);
+        if (!groupMap.has(k)) groupMap.set(k, []);
+        groupMap.get(k)!.push(e);
       });
+      const sections = Array.from(groupMap.entries()).map(([kana, es]) => ({ kana, entries: es }));
       return sections.map(({ kana, entries: es }) => (
         <div key={kana}>
           <div style={styles.groupLabel}>{kana}</div>
@@ -374,9 +396,16 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
             </FormGroup>
 
             <FormGroup label="用例文">
-              <textarea style={{ ...styles.input, ...styles.textarea }} value={form.example}
-                placeholder="作品中の文章をここに"
-                onChange={e => setForm(f => ({ ...f, example: e.target.value }))} />
+              <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                <textarea style={{ ...styles.input, ...styles.textarea, flex: 1 }} value={form.example}
+                  placeholder="作品中の文章をここに"
+                  onChange={e => setForm(f => ({ ...f, example: e.target.value }))} />
+                <button style={styles.aiBtn} onClick={openGoogleLens} aria-label="Googleレンズを開く">
+                  <ScanText size={13} />
+                  <span>Lens</span>
+                </button>
+              </div>
+              <div style={styles.aiHint}>Lensで読み取った文字をコピーして、ここに貼り付け</div>
             </FormGroup>
 
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>

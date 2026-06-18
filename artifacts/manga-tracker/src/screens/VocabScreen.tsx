@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText } from "lucide-react";
+import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText, Star, ChevronDown } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { loadVocabFromCloud, saveVocabToCloud } from "../storage";
 
@@ -11,6 +11,7 @@ export interface VocabEntry {
   meaning: string;
   work?: string;
   example?: string;
+  favorite?: boolean;
   createdAt: number;
 }
 
@@ -50,6 +51,11 @@ async function fetchMeaningFromAI(word: string): Promise<{ meaning: string; read
     body: JSON.stringify({ word }),
   });
   const data = await res.json();
+  if (data.error === "rate_limited") {
+    const err = new Error(data.message || "rate limited");
+    (err as Error & { rateLimited?: boolean }).rateLimited = true;
+    throw err;
+  }
   if (!data.meaning) throw new Error(data.error || "no meaning returned");
   return { meaning: data.meaning, reading: data.reading || "" };
 }
@@ -122,6 +128,8 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchType, setSearchType] = useState<SearchType>("word");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -164,10 +172,14 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
 
   // ---- フィルタ ----
   function getFiltered() {
-    if (!searchQuery) return entries;
-    if (searchType === "word")
-      return entries.filter(e => e.word.includes(searchQuery) || (e.reading && e.reading.includes(searchQuery)));
-    return entries.filter(e => e.work && e.work.includes(searchQuery));
+    let result = entries;
+    if (searchQuery) {
+      result = searchType === "word"
+        ? result.filter(e => e.word.includes(searchQuery) || (e.reading && e.reading.includes(searchQuery)))
+        : result.filter(e => e.work && e.work.includes(searchQuery));
+    }
+    if (favoritesOnly) result = result.filter(e => e.favorite);
+    return result;
   }
 
   // ---- AI取得 ----
@@ -180,8 +192,12 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
       // よみがなはAIが取得できた場合のみ上書きする（取得できなかった場合は手入力済みの値を残す）
       setForm(f => ({ ...f, meaning, reading: reading || f.reading }));
       setAiHint("✓ 取得しました。編集できます。");
-    } catch {
-      setAiHint("取得できませんでした。手動で入力してください。");
+    } catch (e) {
+      if ((e as Error & { rateLimited?: boolean })?.rateLimited) {
+        setAiHint((e as Error).message);
+      } else {
+        setAiHint("取得できませんでした。手動で入力してください。");
+      }
     } finally {
       setAiLoading(false);
     }
@@ -237,6 +253,18 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
     setConfirmId(null);
   }
 
+  function toggleFavorite(id: string) {
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, favorite: !e.favorite } : e));
+  }
+
+  function toggleGroupCollapse(key: string) {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
   // ---- グループ生成 ----
   const filtered = getFiltered();
 
@@ -248,16 +276,23 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
         if (!groups[k]) groups[k] = [];
         groups[k].push(e);
       });
-      return Object.entries(groups).map(([work, es]) => (
-        <div key={work}>
-          <div style={styles.groupLabel}>
-            {work}<span style={styles.countBadge}>{es.length}語</span>
+      return Object.entries(groups).map(([work, es]) => {
+        const collapsed = collapsedGroups.has(work);
+        return (
+          <div key={work}>
+            <div
+              style={{ ...styles.groupLabel, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", userSelect: "none" }}
+              onClick={() => toggleGroupCollapse(work)}
+            >
+              <ChevronDown size={14} style={{ flexShrink: 0, transition: "transform 0.15s", transform: collapsed ? "rotate(-90deg)" : "none" }} />
+              <span>{work}</span><span style={styles.countBadge}>{es.length}語</span>
+            </div>
+            {!collapsed && es.map(e => <EntryCard key={e.id} entry={e} density={density} viewMode={viewMode}
+              expanded={expanded === e.id} onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
+              onEdit={() => openEdit(e.id)} onDelete={() => setConfirmId(e.id)} onToggleFavorite={() => toggleFavorite(e.id)} />)}
           </div>
-          {es.map(e => <EntryCard key={e.id} entry={e} density={density} viewMode={viewMode}
-            expanded={expanded === e.id} onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
-            onEdit={() => openEdit(e.id)} onDelete={() => setConfirmId(e.id)} />)}
-        </div>
-      ));
+        );
+      });
     } else {
       const sorted = [...filtered].sort(kanaSort);
       // 直前セクションとの隣接だけで束ねると、ソート結果がわずかにブレた場合
@@ -275,7 +310,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           <div style={styles.groupLabel}>{kana}</div>
           {es.map(e => <EntryCard key={e.id} entry={e} density={density} viewMode={viewMode}
             expanded={expanded === e.id} onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
-            onEdit={() => openEdit(e.id)} onDelete={() => setConfirmId(e.id)} />)}
+            onEdit={() => openEdit(e.id)} onDelete={() => setConfirmId(e.id)} onToggleFavorite={() => toggleFavorite(e.id)} />)}
         </div>
       ));
     }
@@ -294,6 +329,13 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
         <div style={{ display: "flex", gap: 6 }}>
           <button style={styles.iconBtn} onClick={() => exportToCsv(entries)} aria-label="CSVエクスポート">
             <Download size={16} />
+          </button>
+          <button
+            style={{ ...styles.iconBtn, ...(favoritesOnly ? styles.iconBtnActive : {}) }}
+            onClick={() => { setFavoritesOnly(v => !v); setExpanded(null); }}
+            aria-label="お気に入りのみ表示"
+          >
+            <Star size={16} fill={favoritesOnly ? "currentColor" : "none"} />
           </button>
           <button style={styles.iconBtn} onClick={onToggleTheme} aria-label="テーマ切替">
             <SunMoon size={16} />
@@ -446,9 +488,10 @@ interface CardProps {
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onToggleFavorite: () => void;
 }
 
-function EntryCard({ entry: e, density, viewMode, expanded, onToggle, onEdit, onDelete }: CardProps) {
+function EntryCard({ entry: e, density, viewMode, expanded, onToggle, onEdit, onDelete, onToggleFavorite }: CardProps) {
   const showReadingInline = (density === "word" || density === "all") && e.reading;
   const showMeaningAlways = (density === "meaning" || density === "all") && e.meaning;
 
@@ -471,16 +514,23 @@ function EntryCard({ entry: e, density, viewMode, expanded, onToggle, onEdit, on
           </div>
           {showMeaningAlways && <div style={styles.previewMeaning}>{e.meaning}</div>}
         </div>
-        {expanded && (
-          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-            <button data-action="edit" style={styles.actBtn} onClick={e2 => { e2.stopPropagation(); onEdit(); }} aria-label="編集">
-              <Pencil size={14} />
-            </button>
-            <button data-action="del" style={{ ...styles.actBtn, ...styles.actBtnDel }} onClick={e2 => { e2.stopPropagation(); onDelete(); }} aria-label="削除">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          <button data-action="favorite" style={{ ...styles.actBtn, ...(e.favorite ? styles.actBtnFav : {}) }}
+            onClick={e2 => { e2.stopPropagation(); onToggleFavorite(); }}
+            aria-label={e.favorite ? "お気に入りを外す" : "お気に入りに追加"}>
+            <Star size={14} fill={e.favorite ? "currentColor" : "none"} />
+          </button>
+          {expanded && (
+            <>
+              <button data-action="edit" style={styles.actBtn} onClick={e2 => { e2.stopPropagation(); onEdit(); }} aria-label="編集">
+                <Pencil size={14} />
+              </button>
+              <button data-action="del" style={{ ...styles.actBtn, ...styles.actBtnDel }} onClick={e2 => { e2.stopPropagation(); onDelete(); }} aria-label="削除">
+                <Trash2 size={14} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {expanded && hasDetail && (
@@ -540,6 +590,7 @@ const styles: Record<string, React.CSSProperties> = {
   workTag: { display: "inline-block", fontSize: 11, background: "var(--bg-overlay)", color: "var(--text-muted)", border: "0.5px solid var(--border)", borderRadius: 100, padding: "2px 8px" },
   actBtn: { width: 30, height: 30, borderRadius: 8, border: "0.5px solid var(--border)", background: "var(--bg-overlay)", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   actBtnDel: {},
+  actBtnFav: { color: "#e0af68", borderColor: "#e0af68", background: "#e0af6822" },
   empty: { textAlign: "center", padding: "40px 0", color: "var(--text-dim)", fontSize: 14 },
   fab: { position: "fixed", bottom: 24, right: 20, width: 48, height: 48, borderRadius: "50%", background: "#7aa2f7", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#1a1b26" },
   overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", zIndex: 50 },

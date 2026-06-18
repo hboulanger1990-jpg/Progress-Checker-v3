@@ -28,7 +28,7 @@ serve(async (req) => {
 {"reading": "ひらがなのよみがな。よみがなが分からない場合や、もともとひらがな・カタカナ・外来語などでよみがなを付ける必要がない場合は空文字\"\"", "meaning": "辞書のように簡潔な1〜2文の意味の説明"}`;
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -37,6 +37,13 @@ serve(async (req) => {
         }),
       }
     );
+
+    if (res.status === 429) {
+      return new Response(
+        JSON.stringify({ error: "rate_limited", message: "AIの利用が混み合っています。1分ほど待ってからもう一度お試しください。" }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const data = await res.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();

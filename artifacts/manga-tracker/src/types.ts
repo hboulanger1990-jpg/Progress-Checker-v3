@@ -104,6 +104,7 @@ export interface StockItem {
   consumeDays: number;      // 「〇日に〇消費」の〇日
   capacity?: number;        // 任意：バー表示の基準
   accentColor?: StockAccentColor; // カテゴリカラー（省略時はblue）
+  startDate?: number;       // 任意：使用開始日のtimestamp（指定時はlastUpdatedの初期値として使用。過去日付なら登録時にその分の消費が自動で減算される）
   lastUpdated: number;      // 最後に残量を計算した日のtimestamp（日単位で減算するための基準）
   history: StockRefill[];
 }

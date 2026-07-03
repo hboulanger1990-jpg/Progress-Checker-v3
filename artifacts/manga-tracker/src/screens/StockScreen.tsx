@@ -40,12 +40,13 @@ function daysUntilEmpty(item: StockItem): number {
   return item.quantity / dailyUse;
 }
 
-function formatDate(daysFromNow: number): string {
+function formatDate(daysFromNow: number, withWeekday: boolean = false): string {
   if (!isFinite(daysFromNow)) return "—";
   const d = new Date();
   d.setDate(d.getDate() + Math.ceil(daysFromNow));
+  if (!withWeekday) return `${d.getMonth() + 1}/${d.getDate()}`;
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-  return `${d.getMonth() + 1}月${d.getDate()}日 (${weekdays[d.getDay()]})`;
+  return `${d.getMonth() + 1}/${d.getDate()} (${weekdays[d.getDay()]})`;
 }
 
 function accentHex(item: StockItem): string {
@@ -110,6 +111,12 @@ function ItemFormSheet({
   const [consumeDays, setConsumeDays] = useState(initial ? String(initial.consumeDays) : "1");
   const [capacity, setCapacity] = useState(initial?.capacity != null ? String(initial.capacity) : "");
   const [accentColor, setAccentColor] = useState<StockAccentColor>(initial?.accentColor ?? "blue");
+  const [startDate, setStartDate] = useState(() => {
+    const ts = initial?.startDate ?? initial?.lastUpdated ?? Date.now();
+    const d = new Date(ts);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
 
   const canSave =
     name.trim() !== "" && unit.trim() !== "" &&
@@ -119,6 +126,8 @@ function ItemFormSheet({
 
   function handleSave() {
     if (!canSave) return;
+    const [y, m, d] = startDate.split("-").map(Number);
+    const startTs = new Date(y, m - 1, d).getTime();
     onSave({
       name: name.trim(), unit: unit.trim(),
       quantity: Number(quantity),
@@ -126,6 +135,7 @@ function ItemFormSheet({
       consumeDays: Number(consumeDays),
       capacity: capacity !== "" ? Number(capacity) : undefined,
       accentColor,
+      startDate: startTs,
     });
   }
 
@@ -190,6 +200,15 @@ function ItemFormSheet({
               <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="70" style={{ ...inputStyle, flex: 1 }} />
               <span style={{ fontSize: "14px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{unit || "単位"}</span>
             </div>
+          </div>
+
+          {/* 使用開始日 */}
+          <div>
+            <label style={{ fontSize: "12px", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>
+              使用開始日
+              <span style={{ fontSize: "11px", marginLeft: "6px", color: "var(--text-dim)" }}>— 過去日付なら消費分を自動で反映</span>
+            </label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
           </div>
 
           {/* 消費ペース */}
@@ -425,8 +444,8 @@ function DetailSheet({ item, onRefill, onDeleteRefill, onEdit, onDelete, onClose
               <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>消費ペース</div>
             </div>
             <div style={{ background: "var(--bg-surface)", borderRadius: "10px", padding: "10px 8px", textAlign: "center" }}>
-              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4 }}>{isFinite(days) ? formatDate(days) : "—"}</div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>切れる日</div>
+              <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{isFinite(days) ? formatDate(days) : "—"}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>期日</div>
             </div>
           </div>
 
@@ -522,13 +541,15 @@ export default function StockScreen({ user, locked, theme, onToggleTheme, onTogg
   }
 
   function addItem(data: Omit<StockItem, "id" | "lastUpdated" | "history">) {
-    const item: StockItem = { ...data, id: crypto.randomUUID(), lastUpdated: startOfDay(Date.now()), history: [] };
-    mutate((prev) => [item, ...prev]);
+    const baseDate = data.startDate ? startOfDay(data.startDate) : startOfDay(Date.now());
+    const item: StockItem = { ...data, id: crypto.randomUUID(), lastUpdated: baseDate, history: [] };
+    mutate((prev) => [applyDailyConsumption(item), ...prev]);
   }
 
   function editItem(id: string, data: Omit<StockItem, "id" | "lastUpdated" | "history">) {
-    mutate((prev) => prev.map((it) => it.id !== id ? it : { ...it, ...data, lastUpdated: startOfDay(Date.now()) }));
-    setDetailTarget((prev) => prev ? { ...prev, ...data, lastUpdated: startOfDay(Date.now()) } : null);
+    const baseDate = data.startDate ? startOfDay(data.startDate) : startOfDay(Date.now());
+    mutate((prev) => prev.map((it) => it.id !== id ? it : applyDailyConsumption({ ...it, ...data, lastUpdated: baseDate })));
+    setDetailTarget((prev) => prev ? applyDailyConsumption({ ...prev, ...data, lastUpdated: baseDate }) : null);
   }
 
   function deleteItem(id: string) {
@@ -567,7 +588,8 @@ export default function StockScreen({ user, locked, theme, onToggleTheme, onTogg
 
   const sorted = [...items].sort((a, b) => daysUntilEmpty(a) - daysUntilEmpty(b));
   const urgentItems = sorted.filter((it) => daysUntilEmpty(it) <= 7);
-  const soonItems   = sorted.filter((it) => { const d = daysUntilEmpty(it); return d > 7 && d <= 30; });
+  const soonItems   = sorted.filter((it) => { const d = daysUntilEmpty(it); return d > 7 && d <= 14; });
+  const prepItems    = sorted.filter((it) => { const d = daysUntilEmpty(it); return d > 14 && d <= 30; });
   const okItems     = sorted.filter((it) => daysUntilEmpty(it) > 30);
 
   function renderItem(item: StockItem) {
@@ -601,7 +623,7 @@ export default function StockScreen({ user, locked, theme, onToggleTheme, onTogg
             {isFinite(days) ? `${Math.ceil(days)}日後` : "—"}
           </div>
           <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-sub)", marginTop: "3px", whiteSpace: "nowrap" }}>
-            {isFinite(days) ? formatDate(days) : ""}
+            {isFinite(days) ? formatDate(days, true) : ""}
           </div>
         </div>
       </button>
@@ -680,9 +702,15 @@ export default function StockScreen({ user, locked, theme, onToggleTheme, onTogg
                 {soonItems.map(renderItem)}
               </>
             )}
+            {prepItems.length > 0 && (
+              <>
+                <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase", margin: `${urgentItems.length > 0 || soonItems.length > 0 ? "16px" : "4px"} 2px 8px` }}>そろそろ準備</p>
+                {prepItems.map(renderItem)}
+              </>
+            )}
             {okItems.length > 0 && (
               <>
-                <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase", margin: `${urgentItems.length > 0 || soonItems.length > 0 ? "16px" : "4px"} 2px 8px` }}>余裕あり</p>
+                <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase", margin: `${urgentItems.length > 0 || soonItems.length > 0 || prepItems.length > 0 ? "16px" : "4px"} 2px 8px` }}>余裕あり</p>
                 {okItems.map(renderItem)}
               </>
             )}

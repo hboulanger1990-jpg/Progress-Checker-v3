@@ -3,6 +3,7 @@ import type { AccentColor, Folder, FolderPattern, Work, Section } from "./types"
 import { loadFolders, saveFolders, loadFoldersFromCloud, saveFoldersToCloud } from "./storage";
 import { supabase } from "./lib/supabase";
 import FolderListScreen from "./screens/FolderListScreen";
+import GenreListScreen from "./screens/GenreListScreen";
 import WorkListScreen from "./screens/WorkListScreen";
 import WorkDetailScreen from "./screens/WorkDetailScreen";
 import StockScreen from "./screens/StockScreen";
@@ -11,7 +12,8 @@ import type { User } from "@supabase/supabase-js";
 
 type View =
   | { screen: "folders" }
-  | { screen: "works"; folderId: string }
+  | { screen: "genres"; folderId: string }
+  | { screen: "works"; folderId: string; genre?: string | null }
   | { screen: "detail"; folderId: string; workId: string };
 
 const LOCK_KEY = "pc-locked";
@@ -150,14 +152,88 @@ export default function App() {
     mutate(() => newFolders);
   }
 
+  // ---- Genre CRUD（read型フォルダ専用。folder.genres は名前リストのみを保持し、
+  //      各Workへの割り当ては work.genre で行う） ----
+  function addGenre(folderId: string, name: string) {
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, genres: [...(f.genres ?? []), name], updatedAt: Date.now() }));
+  }
+  function editGenre(folderId: string, oldName: string, newName: string) {
+    mutate((prev) => prev.map((f) => {
+      if (f.id !== folderId) return f;
+      return {
+        ...f,
+        genres: (f.genres ?? []).map((g) => g === oldName ? newName : g),
+        works: f.works.map((w) => w.genre !== oldName ? w : { ...w, genre: newName }),
+        updatedAt: Date.now(),
+      };
+    }));
+  }
+  function deleteGenre(folderId: string, name: string) {
+    // folder.genres から名前を外すだけでよい。該当作品の work.genre はあえて書き換えない
+    // （リストに存在しないジャンル名は表示側で自動的に「未分類」扱いになるため）
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, genres: (f.genres ?? []).filter((g) => g !== name), updatedAt: Date.now() }));
+  }
+
+  // 複数フォルダの中身（works・genres）を1つのフォルダに統合し、統合元フォルダは削除する。
+  // 統合元フォルダの時点で「未分類」だった作品（work.genreが未設定、または統合元のgenresに存在しない値）には、
+  // 統合元フォルダ名をそのまま新しいジャンル名として自動的に割り当てる。
+  // これにより統合直後から「どのフォルダから来たか」で仕分けられた状態になる（既存の未分類と混ざらない）
+  function mergeFolders(sourceIds: string[], targetId: string) {
+    mutate((prev) => {
+      const target = prev.find((f) => f.id === targetId);
+      if (!target) return prev;
+      const sources = prev.filter((f) => sourceIds.includes(f.id));
+
+      const taggedSourceWorks = sources.flatMap((f) => {
+        const ownGenres = f.genres ?? [];
+        return f.works.map((w) => {
+          const hasValidGenre = w.genre && ownGenres.includes(w.genre);
+          return hasValidGenre ? w : { ...w, genre: f.title };
+        });
+      });
+      const sourceDerivedGenres = sources.map((f) => f.title);
+
+      const mergedWorks = [...target.works, ...taggedSourceWorks];
+      const mergedGenres = Array.from(new Set([
+        ...(target.genres ?? []),
+        ...sources.flatMap((f) => f.genres ?? []),
+        ...sourceDerivedGenres,
+      ]));
+
+      return prev
+        .filter((f) => !sourceIds.includes(f.id))
+        .map((f) => f.id === targetId ? { ...f, works: mergedWorks, genres: mergedGenres, updatedAt: Date.now() } : f);
+    });
+  }
+
+  // 同一フォルダ内の特定ジャンル（複数可）の作品だけを、別フォルダへ移す。
+  // 移動元フォルダの genres からは対象ジャンル名を除去し、移動先フォルダの genres には
+  // 重複しない形で追加する（すでに同名ジャンルがあれば追加せず、作品だけがそこに合流する）
+  function mergeGenres(folderId: string, genreNames: string[], targetFolderId: string) {
+    mutate((prev) => {
+      const source = prev.find((f) => f.id === folderId);
+      const target = prev.find((f) => f.id === targetFolderId);
+      if (!source || !target) return prev;
+      const movingWorks = source.works.filter((w) => w.genre && genreNames.includes(w.genre));
+      const remainingWorks = source.works.filter((w) => !(w.genre && genreNames.includes(w.genre)));
+      const newTargetGenres = Array.from(new Set([...(target.genres ?? []), ...genreNames]));
+      const newSourceGenres = (source.genres ?? []).filter((g) => !genreNames.includes(g));
+      return prev.map((f) => {
+        if (f.id === folderId) return { ...f, works: remainingWorks, genres: newSourceGenres, updatedAt: Date.now() };
+        if (f.id === targetFolderId) return { ...f, works: [...target.works, ...movingWorks], genres: newTargetGenres, updatedAt: Date.now() };
+        return f;
+      });
+    });
+  }
+
   // ---- Work CRUD ----
-  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; tags: string[] }) {
+  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; tags: string[]; genre?: string }) {
     const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: [work, ...f.works], updatedAt: Date.now() }));
   }
 
   // タイトル・色などの編集（updatedAt更新あり）
-  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) {
+  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags" | "genre">>) {
     mutate((prev) => prev.map((f) => {
       if (f.id !== folderId) return f;
       const updatedWorks = f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() });
@@ -308,7 +384,13 @@ export default function App() {
           onToggleLock={() => setLocked((v) => !v)}
           onSignIn={signInWithGoogle}
           onSignOut={signOut}
-          onSelect={(f) => navigate({ screen: "works", folderId: f.id })}
+          onSelect={(f) => {
+            if (f.type === "read") {
+              navigate({ screen: "genres", folderId: f.id });
+            } else {
+              navigate({ screen: "works", folderId: f.id });
+            }
+          }}
           onAdd={addFolder}
           onEdit={editFolder}
           onDelete={deleteFolder}
@@ -316,6 +398,21 @@ export default function App() {
           onImport={importHandler}
           onSwitchToStock={() => setAppMode("stock")}
           onSwitchToVocab={() => setAppMode("vocab")}
+          onMergeFolders={mergeFolders}
+        />
+      )}
+      {appMode === "progress" && view.screen === "genres" && currentFolder && (
+        <GenreListScreen
+          folder={currentFolder}
+          allFolders={folders}
+          theme={theme}
+          locked={locked}
+          onBack={goBack}
+          onSelectGenre={(genre) => navigate({ screen: "works", folderId: currentFolder.id, genre })}
+          onAddGenre={(name) => addGenre(currentFolder.id, name)}
+          onEditGenre={(oldName, newName) => editGenre(currentFolder.id, oldName, newName)}
+          onDeleteGenre={(name) => deleteGenre(currentFolder.id, name)}
+          onMergeGenres={(genreNames, targetFolderId) => mergeGenres(currentFolder.id, genreNames, targetFolderId)}
         />
       )}
       {appMode === "progress" && view.screen === "works" && currentFolder && (
@@ -323,6 +420,7 @@ export default function App() {
           folder={currentFolder}
           locked={locked}
           theme={theme}
+          genreFilter={view.genre}
           onToggleLock={() => setLocked((v) => !v)}
           onBack={goBack}
           onSelect={(w) => navigate({ screen: "detail", folderId: currentFolder.id, workId: w.id })}

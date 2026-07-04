@@ -21,6 +21,13 @@ interface Props {
   folder: Folder;
   locked: boolean;
   theme: "dark" | "light" | "sepia";
+  /**
+   * read型フォルダをジャンル経由（GenreListScreen）で開いたときに渡す。
+   * undefined = 従来通りフォルダ内の全作品を表示（ジャンル機能未使用のフォルダ／progress型はこれ）
+   * string    = そのジャンルの作品だけに絞る
+   * null      = 「未分類」の作品だけに絞る
+   */
+  genreFilter?: string | null;
   onToggleLock: () => void;
   onBack: () => void;
   onSelect: (w: Work) => void;
@@ -33,8 +40,9 @@ interface Props {
     unit: string;
     sectionLabel: string;
     tags: string[];
+    genre?: string;
   }) => void;
-  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) => void;
+  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags" | "genre">>) => void;
   onDelete: (workId: string) => void;
   onReorder: (newWorks: Work[]) => void;
   onSetSortOrder: (order: SortOrder) => void;
@@ -55,7 +63,7 @@ const PROGRESS_SORT_OPTIONS: { value: SortOrder; label: string }[] = [
   { value: "progress_desc", label: "進捗順（高→低）" },
 ];
 
-export default function WorkListScreen({ folder, locked, theme, onToggleLock, onBack, onSelect, onToggleCompleted, onAdd, onEdit, onDelete, onReorder, onSetSortOrder }: Props) {
+export default function WorkListScreen({ folder, locked, theme, genreFilter, onToggleLock, onBack, onSelect, onToggleCompleted, onAdd, onEdit, onDelete, onReorder, onSetSortOrder }: Props) {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -111,9 +119,16 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
     }
   }, [selectMode]);
 
-  const allTags = Array.from(new Set(folder.works.flatMap((w) => w.tags ?? [])));
+  // genreFilterが渡されている場合（RD=ジャンル経由で開いた場合）は、フォルダ内作品をそのジャンルだけに絞る
+  const genreScopedWorks = genreFilter === undefined
+    ? folder.works
+    : genreFilter === null
+      ? folder.works.filter((w) => !w.genre || !(folder.genres ?? []).includes(w.genre))
+      : folder.works.filter((w) => w.genre === genreFilter);
 
-  const filtered = folder.works.filter((w) => {
+  const allTags = Array.from(new Set(genreScopedWorks.flatMap((w) => w.tags ?? [])));
+
+  const filtered = genreScopedWorks.filter((w) => {
     const matchText = w.title.toLowerCase().includes(search.toLowerCase());
     const matchTag = selectedTag ? (w.tags ?? []).includes(selectedTag) : true;
     return matchText && matchTag;
@@ -160,7 +175,7 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
     if (!text) return;
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     lines.forEach((title) => {
-      onAdd({ title, accentColor: folder.accentColor, labelUnread: folderDefaults.labelUnread, labelRead: folderDefaults.labelRead, unit: folderDefaults.unit, sectionLabel: "", tags: [] });
+      onAdd({ title, accentColor: folder.accentColor, labelUnread: folderDefaults.labelUnread, labelRead: folderDefaults.labelRead, unit: folderDefaults.unit, sectionLabel: "", tags: [], ...(typeof genreFilter === "string" ? { genre: genreFilter } : {}) });
     });
   }
 
@@ -233,6 +248,20 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
     });
   }
 
+  // read型フォルダ専用：選択中の作品のジャンルを一括で変更する（undefined = 未分類にする）
+  function bulkSetGenre(genre: string | undefined) {
+    selectedIds.forEach((id) => {
+      onEdit(id, { genre });
+    });
+    setShowTagAction(false);
+  }
+
+  function toggleSelectAll() {
+    const visibleIds = filtered.map((w) => w.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(visibleIds));
+  }
+
   const selectedWorks = folder.works.filter((w) => selectedIds.has(w.id));
   const commonTags = allTags.filter((tag) => selectedWorks.every((w) => (w.tags ?? []).includes(tag)));
 
@@ -283,7 +312,9 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
             <button onClick={onBack} className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2" style={{ color: folderHex }}>
               <ArrowLeft size={20} /><span>戻る</span>
             </button>
-            <h1 className="flex-1 font-bold text-base truncate" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>{folder.title}</h1>
+            <h1 className="flex-1 font-bold text-base truncate" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>
+              {genreFilter === undefined ? folder.title : genreFilter === null ? "未分類" : genreFilter}
+            </h1>
             <div className="flex items-center gap-2 shrink-0">
               {/* ロックボタン */}
               <button
@@ -371,6 +402,20 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
             </div>
           </div>
 
+          <div
+            className="flex items-center justify-between mb-1"
+            style={selectMode ? {} : { visibility: "hidden" }}
+          >
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{selectedIds.size}件選択中</span>
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs font-medium px-2.5 py-1 rounded-lg active:scale-95 transition-transform"
+              style={{ color: folderHex }}
+            >
+              {filtered.length > 0 && filtered.every((w) => selectedIds.has(w.id)) ? "全解除" : "全選択"}
+            </button>
+          </div>
+
           {!isReadMode && (
             <div style={selectMode ? { visibility: "hidden" } : {}}>
               <div className="relative">
@@ -403,8 +448,8 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
 
       <main className="flex-1 px-4 py-3 max-w-lg mx-auto w-full pb-32">
         {isReadMode && (() => {
-          const totalWorks = folder.works.length;
-          const completedWorks = folder.works.filter((w) => w.completed).length;
+          const totalWorks = genreScopedWorks.length;
+          const completedWorks = genreScopedWorks.filter((w) => w.completed).length;
           const pct = totalWorks === 0 ? 0 : Math.round((completedWorks / totalWorks) * 100);
           return (
             <div className="mb-3" style={selectMode ? { opacity: 0, pointerEvents: "none" } : {}}>
@@ -699,6 +744,26 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
                     ))}
                   </div>
                 </div>
+                {folder.type === "read" && (
+                  <div>
+                    <p className="text-xs mb-1.5" style={{ color: "var(--text-muted)" }}>ジャンルを一括変更</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => bulkSetGenre(undefined)}
+                        className="px-3 py-1.5 rounded-full border text-xs font-medium active:scale-95 transition-transform"
+                        style={{ borderColor: "var(--border)", color: "var(--text-muted)", backgroundColor: "var(--bg-surface)" }}
+                      >未分類</button>
+                      {(folder.genres ?? []).map((g) => (
+                        <button key={g} onClick={() => bulkSetGenre(g)}
+                          className="px-3 py-1.5 rounded-full border text-xs font-medium active:scale-95 transition-transform"
+                          style={{ borderColor: folderHex, color: folderHex, backgroundColor: `${folderHex}18` }}
+                        >{g}</button>
+                      ))}
+                    </div>
+                    {(folder.genres ?? []).length === 0 && (
+                      <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>まだジャンルがありません</p>
+                    )}
+                  </div>
+                )}
                 <button
                   onClick={() => {
                     if (!window.confirm(`選択中の${selectedIds.size}件を削除しますか？`)) return;
@@ -748,10 +813,14 @@ export default function WorkListScreen({ folder, locked, theme, onToggleLock, on
 
       {showAdd && (
         <WorkModal mode="add" folderDefaults={folderDefaults} folderAccentColor={folder.accentColor} existingTags={allTags}
-          onClose={() => setShowAdd(false)} onSave={(data) => { onAdd(data); setShowAdd(false); }} />
+          folderType={folder.type} folderGenres={folder.genres ?? []}
+          defaultGenre={typeof genreFilter === "string" ? genreFilter : undefined}
+          onClose={() => setShowAdd(false)}
+          onSave={(data) => { onAdd(data); setShowAdd(false); }} />
       )}
       {editTarget && (
         <WorkModal mode="edit" initial={editTarget} folderAccentColor={folder.accentColor} existingTags={allTags}
+          folderType={folder.type} folderGenres={folder.genres ?? []}
           onClose={() => setEditTarget(null)} onSave={(data) => { onEdit(editTarget.id, data); setEditTarget(null); }} />
       )}
     </div>

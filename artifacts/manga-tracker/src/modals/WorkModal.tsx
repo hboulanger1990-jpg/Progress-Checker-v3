@@ -8,6 +8,11 @@ interface Props {
   folderDefaults?: { labelUnread: string; labelRead: string; unit: string };
   folderAccentColor?: AccentColor;
   existingTags?: string[];
+  /** read型フォルダのときだけ渡す。渡された場合、単位・セクション名欄の代わりにジャンル選択欄を出す */
+  folderType?: "progress" | "read";
+  folderGenres?: string[];
+  /** add時、現在絞り込み中のジャンルがあればその値を初期選択にする */
+  defaultGenre?: string;
   onClose: () => void;
   onSave: (data: {
     title: string;
@@ -17,18 +22,20 @@ interface Props {
     unit: string;
     sectionLabel: string;
     tags: string[];
+    genre?: string;
   }) => void;
 }
 
 const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 
-export default function WorkModal({ mode, initial, folderDefaults, folderAccentColor, existingTags = [], onClose, onSave }: Props) {
+export default function WorkModal({ mode, initial, folderDefaults, folderAccentColor, existingTags = [], folderType, folderGenres = [], defaultGenre, onClose, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? folderAccentColor ?? "blue");
   const [labelUnread, setLabelUnread] = useState(initial?.labelUnread ?? folderDefaults?.labelUnread ?? "未完了");
   const [labelRead, setLabelRead] = useState(initial?.labelRead ?? folderDefaults?.labelRead ?? "完了");
   const [unit, setUnit] = useState(initial?.unit ?? folderDefaults?.unit ?? "");
   const [sectionLabel, setSectionLabel] = useState(initial?.sectionLabel ?? "");
+  const [genre, setGenre] = useState<string | undefined>(initial?.genre ?? defaultGenre);
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [error, setError] = useState("");
@@ -71,6 +78,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
       unit: unit.trim(),
       sectionLabel: sectionLabel.trim(),
       tags,
+      genre,
     });
   }
 
@@ -144,21 +152,53 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
               <input value={labelRead} onChange={(e) => setLabelRead(e.target.value)} className={inputClass} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          {folderType === "read" ? (
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">単位</label>
-              <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="話・巻など" className={`${inputClass} placeholder-[var(--text-dim)]`} />
+              <label className="block text-xs text-[var(--text-muted)] mb-2">ジャンル</label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setGenre(undefined)}
+                  className="px-3 py-1.5 rounded-full border text-sm font-medium transition-colors active:scale-95"
+                  style={
+                    genre === undefined
+                      ? { backgroundColor: "#7aa2f733", borderColor: "#7aa2f7", color: "#7aa2f7" }
+                      : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
+                  }
+                >未分類</button>
+                {folderGenres.map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setGenre(g)}
+                    className="px-3 py-1.5 rounded-full border text-sm font-medium transition-colors active:scale-95"
+                    style={
+                      genre === g
+                        ? { backgroundColor: "#7aa2f733", borderColor: "#7aa2f7", color: "#7aa2f7" }
+                        : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
+                    }
+                  >{g}</button>
+                ))}
+              </div>
+              {folderGenres.length === 0 && (
+                <p className="text-xs text-[var(--text-dim)] mt-2">まだジャンルがありません。ジャンル一覧画面から追加できます。</p>
+              )}
             </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">セクション名</label>
-              <input
-                value={sectionLabel}
-                onChange={(e) => setSectionLabel(e.target.value)}
-                placeholder="セクション"
-                className={`${inputClass} placeholder-[var(--text-dim)]`}
-              />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">単位</label>
+                <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="話・巻など" className={`${inputClass} placeholder-[var(--text-dim)]`} />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">セクション名</label>
+                <input
+                  value={sectionLabel}
+                  onChange={(e) => setSectionLabel(e.target.value)}
+                  placeholder="セクション"
+                  className={`${inputClass} placeholder-[var(--text-dim)]`}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">タグ（省略可）</label>

@@ -68,6 +68,7 @@ export interface Work {
   tags?: string[];
   completed?: boolean;
   sortOrder?: SortOrder;
+  genre?: string; // read型フォルダのジャンル分け用。未設定 or folder.genresに存在しない値は「未分類」扱い
   updatedAt: number;
 }
 
@@ -82,6 +83,7 @@ export interface Folder {
   defaultUnit?: string;
   itemSize?: "1" | "2" | "full";
   works: Work[];
+  genres?: string[]; // read型フォルダ専用。ユーザーが自由に追加・編集・削除するジャンル名リスト。空 or 未設定なら従来通り2階層のまま
   updatedAt: number;
 }
 

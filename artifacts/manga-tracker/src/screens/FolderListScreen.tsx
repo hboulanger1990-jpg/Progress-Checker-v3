@@ -1,9 +1,10 @@
-import { Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut, SunMoon, Package, BookMarked } from "lucide-react";
+import { Trash2, User as UserIcon, Snail, Search, X, Plus, LockKeyhole, LockKeyholeOpen, CheckSquare, Square, Check, ArrowDownToLine, CloudUpload, LogOut, SunMoon, Package, BookMarked, Combine } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { AccentColor, Folder, FolderPattern } from "../types";
 import { ACCENT_COLORS } from "../types";
 import FolderModal from "../modals/FolderModal";
 import BackupModal from "../modals/BackupModal";
+import FolderPickerModal from "../modals/FolderPickerModal";
 import { FolderPatternSVG } from "../components/FolderPatternSVG";
 import type { User } from "@supabase/supabase-js";
 
@@ -35,15 +36,17 @@ interface Props {
   onImport: (data: Folder[]) => void;
   onSwitchToStock: () => void;
   onSwitchToVocab: () => void;
+  onMergeFolders: (sourceIds: string[], targetId: string) => void;
 }
 
-export default function FolderListScreen({ folders, user, locked, theme, onToggleTheme, onToggleLock, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onReorder, onImport, onSwitchToStock, onSwitchToVocab }: Props) {
+export default function FolderListScreen({ folders, user, locked, theme, onToggleTheme, onToggleLock, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onReorder, onImport, onSwitchToStock, onSwitchToVocab, onMergeFolders }: Props) {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Folder | null>(null);
   const [showBackup, setShowBackup] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Folder | null>(null);
+  const [showMergePicker, setShowMergePicker] = useState(false);
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -59,6 +62,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
       setSelectedIds(new Set());
       setMoveTargetId(null);
       setShowMoveMode(false);
+      setShowMergePicker(false);
     }
   }, [locked]);
 
@@ -66,6 +70,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
     if (!selectMode) {
       setMoveTargetId(null);
       setShowMoveMode(false);
+      setShowMergePicker(false);
     }
   }, [selectMode]);
 
@@ -434,6 +439,13 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
             ><ArrowDownToLine size={16} /> 移動</button>
             {selectedIds.size > 0 && (
               <button
+                onClick={() => setShowMergePicker(true)}
+                className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+                style={{ backgroundColor: "#9ece6a22", borderColor: "#9ece6a", color: "#9ece6a" }}
+              ><Combine size={16} /> 統合</button>
+            )}
+            {selectedIds.size > 0 && (
+              <button
                 onClick={() => {
                   const targets = folders.filter(f => selectedIds.has(f.id));
                   const names = targets.map(f => `「${f.title}」`).join("、");
@@ -481,6 +493,24 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
       )}
       {showBackup && (
         <BackupModal data={folders} onClose={() => setShowBackup(false)} onImport={onImport} />
+      )}
+      {showMergePicker && (
+        <FolderPickerModal
+          folders={folders.filter((f) => !selectedIds.has(f.id))}
+          title="統合先のフォルダを選択"
+          description="選択したフォルダの中身が、選んだフォルダに統合されます。統合元のフォルダは削除されます。"
+          onClose={() => setShowMergePicker(false)}
+          onSelect={(targetId) => {
+            const targets = folders.filter((f) => selectedIds.has(f.id));
+            const names = targets.map((f) => `「${f.title}」`).join("、");
+            const destName = folders.find((f) => f.id === targetId)?.title ?? "";
+            if (!window.confirm(`${names}を「${destName}」に統合しますか？\n統合元のフォルダは削除されます。`)) return;
+            onMergeFolders(Array.from(selectedIds), targetId);
+            setShowMergePicker(false);
+            setSelectedIds(new Set());
+            setSelectMode(false);
+          }}
+        />
       )}
     </div>
   );

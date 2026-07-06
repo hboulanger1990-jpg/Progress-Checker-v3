@@ -543,13 +543,13 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                       outline: isChecked ? (done ? "2px solid #1a1b2666" : (theme === "light" ? "2px solid #1a1b2644" : "2px solid #7aa2f744")) : "none"
                     }}
                   >
-                    <div className="flex items-start gap-2">
+                    <div className={`flex ${itemSize === "1" ? "items-center" : "items-start"} gap-2`}>
                       {selectMode && (
-                        <span className="shrink-0 mt-0.5" style={{ color: isChecked ? (done ? "var(--text-on-accent)" : (theme === "light" ? "var(--text-primary)" : "#7aa2f7")) : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
+                        <span className={`shrink-0 ${itemSize === "1" ? "" : "mt-0.5"}`} style={{ color: isChecked ? (done ? "var(--text-on-accent)" : (theme === "light" ? "var(--text-primary)" : "#7aa2f7")) : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
                           {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                         </span>
                       )}
-                      <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
+                      <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${itemSize === "1" ? "" : "mt-0.5"}`}
                         style={{ borderColor: done ? "var(--text-on-accent)" : hex, backgroundColor: done ? "var(--text-on-accent)" : "transparent", color: done ? hex : "transparent" }}
                       ><Check size={20} /></span>
                       {itemSize === "1" ? (
@@ -813,14 +813,17 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
 
       {showAdd && (
         <WorkModal mode="add" folderDefaults={folderDefaults} folderAccentColor={folder.accentColor} existingTags={allTags}
-          folderType={folder.type} folderGenres={folder.genres ?? []}
-          defaultGenre={typeof genreFilter === "string" ? genreFilter : undefined}
+          folderType={folder.type}
           onClose={() => setShowAdd(false)}
-          onSave={(data) => { onAdd(data); setShowAdd(false); }} />
+          onSave={(data) => {
+            // read型フォルダでジャンルを絞り込んだ状態で追加した場合は、そのジャンルを自動的に付与する
+            onAdd({ ...data, ...(folder.type === "read" && typeof genreFilter === "string" ? { genre: genreFilter } : {}) });
+            setShowAdd(false);
+          }} />
       )}
       {editTarget && (
         <WorkModal mode="edit" initial={editTarget} folderAccentColor={folder.accentColor} existingTags={allTags}
-          folderType={folder.type} folderGenres={folder.genres ?? []}
+          folderType={folder.type}
           onClose={() => setEditTarget(null)} onSave={(data) => { onEdit(editTarget.id, data); setEditTarget(null); }} />
       )}
     </div>

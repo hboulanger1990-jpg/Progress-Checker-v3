@@ -74,7 +74,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
     });
   }
 
-  const inputClass = "w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
+  const inputClass = "w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--accent-primary)] transition-colors";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -97,7 +97,7 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
             </button>
             <button
               onClick={handleSave}
-              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
+              className="px-3 py-1.5 rounded-xl bg-[var(--accent-primary)] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
             >
               {mode === "add" ? "追加" : "保存"}
             </button>

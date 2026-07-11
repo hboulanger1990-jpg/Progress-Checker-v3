@@ -98,7 +98,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
     onSave(l, s, e, "number", []);
   }
 
-  const inputClass = "w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
+  const inputClass = "w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--accent-primary)] transition-colors";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -124,7 +124,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
             </button>
             <button
               onClick={handleSave}
-              className="px-3 py-1.5 rounded-xl bg-[#7aa2f7] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
+              className="px-3 py-1.5 rounded-xl bg-[var(--accent-primary)] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
             >
               {mode === "add" ? "追加" : "保存"}
             </button>
@@ -151,7 +151,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                 className="py-2 rounded-xl border text-sm font-medium transition-colors active:scale-95"
                 style={
                   sectionMode === "number"
-                    ? { backgroundColor: "#7aa2f733", borderColor: "#7aa2f7", color: "#7aa2f7" }
+                    ? { backgroundColor: "color-mix(in srgb, var(--accent-primary) 20%, transparent)", borderColor: "var(--accent-primary)", color: "var(--accent-primary)" }
                     : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
                 }
               >
@@ -162,7 +162,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                 className="py-2 rounded-xl border text-sm font-medium transition-colors active:scale-95"
                 style={
                   sectionMode === "text"
-                    ? { backgroundColor: "#7aa2f733", borderColor: "#7aa2f7", color: "#7aa2f7" }
+                    ? { backgroundColor: "color-mix(in srgb, var(--accent-primary) 20%, transparent)", borderColor: "var(--accent-primary)", color: "var(--accent-primary)" }
                     : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
                 }
               >
@@ -202,7 +202,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
 
               <button
                 onClick={() => insertItem(0)}
-                className="w-full mb-1.5 py-0.5 rounded border border-dashed border-[var(--border-dim)] text-[var(--text-dim)] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
+                className="w-full mb-1.5 py-0.5 rounded border border-dashed border-[var(--border-dim)] text-[var(--text-dim)] text-xs active:scale-95 transition-transform hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]"
               >
                 <Plus size={20} />
               </button>
@@ -226,7 +226,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                     </div>
                     <button
                       onClick={() => insertItem(index + 1)}
-                      className="w-full mt-1 py-0.5 rounded border border-dashed border-[var(--border-dim)] text-[var(--text-dim)] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
+                      className="w-full mt-1 py-0.5 rounded border border-dashed border-[var(--border-dim)] text-[var(--text-dim)] text-xs active:scale-95 transition-transform hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]"
                     >
                       <Plus size={20} />
                     </button>
@@ -249,7 +249,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 py-2.5 rounded-xl bg-[#7aa2f7] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
+              className="flex-1 py-2.5 rounded-xl bg-[var(--accent-primary)] text-[var(--bg-base)] text-sm font-bold active:scale-95 transition-transform"
             >
               {mode === "add" ? "追加" : "保存"}
             </button>

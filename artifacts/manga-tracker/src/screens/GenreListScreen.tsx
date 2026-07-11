@@ -89,7 +89,7 @@ export default function GenreListScreen({
               onClick={() => setSelectMode((v) => !v)}
               className="shrink-0 h-8 flex items-center justify-center rounded-lg border active:scale-95 transition-all px-2 gap-1"
               style={selectMode
-                ? { backgroundColor: "#7aa2f7", borderColor: "#7aa2f7", color: "var(--bg-base)" }
+                ? { backgroundColor: "var(--accent-primary)", borderColor: "var(--accent-primary)", color: "var(--bg-base)" }
                 : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
               }
               title={selectMode ? "選択モード終了" : "選択モード"}
@@ -245,7 +245,7 @@ function GenreCard({
       >
         <span className="flex items-center gap-2 min-w-0">
           {selectMode && !muted && (
-            <span className="shrink-0" style={{ color: isChecked ? "#7aa2f7" : "var(--text-dim)" }}>
+            <span className="shrink-0" style={{ color: isChecked ? "var(--accent-primary)" : "var(--text-dim)" }}>
               {isChecked ? <CheckSquare size={16} /> : <Square size={16} />}
             </span>
           )}

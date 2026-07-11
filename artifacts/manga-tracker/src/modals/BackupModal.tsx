@@ -62,7 +62,7 @@ export default function BackupModal({ data, onClose, onImport }: Props) {
             <textarea readOnly value={json} className="flex-1 min-h-[160px] bg-[var(--bg-surface)] text-[var(--text-muted)] text-xs border border-[var(--border)] rounded-xl p-3 outline-none font-mono resize-none" />
             <button
               onClick={handleCopy}
-              className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-1 ${copied ? "bg-[#9ece6a] text-[var(--bg-base)]" : "bg-[#7aa2f7] text-[var(--bg-base)]"}`}
+              className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-1 ${copied ? "bg-[#9ece6a] text-[var(--bg-base)]" : "bg-[var(--accent-primary)] text-[var(--bg-base)]"}`}
             >
               {copied ? <><Check size={20} /> コピーしました！</> : "JSONをコピー"}
             </button>
@@ -91,7 +91,7 @@ export default function BackupModal({ data, onClose, onImport }: Props) {
               value={importText}
               onChange={(e) => { setImportText(e.target.value); setImportError(""); }}
               placeholder="またはJSONを貼り付け..."
-              className="flex-1 min-h-[120px] bg-[var(--bg-surface)] text-[var(--text-primary)] text-xs border border-[var(--border)] rounded-xl p-3 outline-none font-mono resize-none placeholder-[var(--text-dim)] focus:border-[#7aa2f7] transition-colors"
+              className="flex-1 min-h-[120px] bg-[var(--bg-surface)] text-[var(--text-primary)] text-xs border border-[var(--border)] rounded-xl p-3 outline-none font-mono resize-none placeholder-[var(--text-dim)] focus:border-[var(--accent-primary)] transition-colors"
             />
             {importError && <p className="text-xs text-[#f7768e]">{importError}</p>}
             <button

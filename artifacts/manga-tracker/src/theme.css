@@ -62,7 +62,16 @@ body {
   min-height: 100dvh;
 }
 
-/* タグ：チェック後の共通スタイル変数 */
+/* 全ページ共通の基調アクセントカラー（追加ボタン・入力欄フォーカス等） */
+:root, [data-theme="dark"] {
+  --accent-primary: #7aa2f7;
+}
+[data-theme="light"] {
+  --accent-primary: #4f9d78;
+}
+[data-theme="sepia"] {
+  --accent-primary: #b38600;
+}
 :root, [data-theme="dark"] {
   --tag-checked-bg: #2a2d3e;
   --tag-checked-text: #787c99;

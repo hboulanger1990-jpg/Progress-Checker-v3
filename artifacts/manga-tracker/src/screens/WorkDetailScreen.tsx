@@ -547,7 +547,7 @@ export default function WorkDetailScreen({
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"><Search size={20} /></span>
             <input value={textSearch} onChange={(e) => setTextSearch(e.target.value)} placeholder="テキスト項目を検索..."
-              className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl pl-9 pr-8 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[var(--text-dim)]"
+              className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl pl-9 pr-8 py-2.5 text-sm outline-none focus:border-[var(--accent-primary)] transition-colors placeholder-[var(--text-dim)]"
             />
             {textSearch && <button onClick={() => setTextSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"><X size={20} /></button>}
           </div>
@@ -593,7 +593,7 @@ export default function WorkDetailScreen({
 
               return (
                 <div key={section.id}>
-                  <div data-section-id={section.id} className={`transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""} ${isSectionChecked ? "ring-2 rounded-xl ring-[#7aa2f7]/40" : ""}`}>
+                  <div data-section-id={section.id} className={`transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""} ${isSectionChecked ? "ring-2 rounded-xl ring-[var(--accent-primary)]/40" : ""}`}>
                     <div className="flex items-center justify-between mb-2 px-1">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         {/* セクション選択チェック or ドラッグハンドル */}
@@ -601,7 +601,7 @@ export default function WorkDetailScreen({
                           <button
                             className="shrink-0 w-7 h-7 flex items-center justify-center"
                             onClick={() => toggleSectionSelect(section.id)}
-                            style={{ color: isSectionChecked ? "#7aa2f7" : "var(--text-dim)" }}
+                            style={{ color: isSectionChecked ? "var(--accent-primary)" : "var(--text-dim)" }}
                           >
                             {isSectionChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                           </button>
@@ -759,7 +759,7 @@ export default function WorkDetailScreen({
                     {sectionSelectMode ? (
                       <button
                         className="w-full text-left px-3 py-2 rounded-xl border transition-all active:scale-[0.98]"
-                        style={{ borderColor: isSectionChecked ? "#7aa2f7" : "var(--border)", backgroundColor: isSectionChecked ? "#7aa2f711" : "var(--bg-surface)" }}
+                        style={{ borderColor: isSectionChecked ? "var(--accent-primary)" : "var(--border)", backgroundColor: isSectionChecked ? "color-mix(in srgb, var(--accent-primary) 7%, transparent)" : "var(--bg-surface)" }}
                         onClick={() => toggleSectionSelect(section.id)}
                       >
                         <span className="text-xs text-[var(--text-muted)]">{section.mode === "text" ? `${sTotal}項目` : `${section.startNum}〜${section.endNum}${work.unit}`}</span>
@@ -818,7 +818,7 @@ export default function WorkDetailScreen({
                                     ? isItemChecked
                                       ? isRead
                                         ? { backgroundColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: "var(--bg-base)", outline: "2px solid var(--bg-base)66" }
-                                        : { backgroundColor: "#7aa2f722", color: "var(--text-primary)", borderColor: "#7aa2f7" }
+                                        : { backgroundColor: "color-mix(in srgb, var(--accent-primary) 13%, transparent)", color: "var(--text-primary)", borderColor: "var(--accent-primary)" }
                                       : isRead
                                         ? { backgroundColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3), color: theme === "dark" ? "var(--bg-base)" : "var(--text-primary)", borderColor: theme === "sepia" ? accentBgSepia : mixWithGray(accentHex, theme, 0.3) }
                                         : { backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", borderColor: "var(--border)" }
@@ -829,7 +829,7 @@ export default function WorkDetailScreen({
                               >
                                 <div className="flex items-center gap-2">
                                   {isThisSectionItemSelect && (
-                                    <span className="shrink-0" style={{ color: isItemChecked ? (isRead ? (theme === "dark" ? "var(--bg-base)" : "var(--text-primary)") : "#7aa2f7") : isRead ? (theme === "dark" ? "var(--bg-base)99" : "var(--text-primary)99") : "var(--text-dim)" }}>
+                                    <span className="shrink-0" style={{ color: isItemChecked ? (isRead ? (theme === "dark" ? "var(--bg-base)" : "var(--text-primary)") : "var(--accent-primary)") : isRead ? (theme === "dark" ? "var(--bg-base)99" : "var(--text-primary)99") : "var(--text-dim)" }}>
                                       {isItemChecked ? <CheckSquare size={16} /> : <Square size={16} />}
                                     </span>
                                   )}

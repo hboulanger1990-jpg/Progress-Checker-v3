@@ -423,7 +423,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="作品を検索..."
                   className="w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none transition-colors"
                   style={{ backgroundColor: "var(--bg-input)", color: "var(--text-primary)", borderColor: "var(--border)" }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = "#7aa2f7"}
+                  onFocus={(e) => e.currentTarget.style.borderColor = "var(--accent-primary)"}
                   onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
                 />
                 {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}><X size={20} /></button>}
@@ -476,7 +476,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                   autoFocus
                   className="w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none transition-colors"
                   style={{ backgroundColor: "var(--bg-input)", color: "var(--text-primary)", borderColor: "var(--border)" }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = "#7aa2f7"}
+                  onFocus={(e) => e.currentTarget.style.borderColor = "var(--accent-primary)"}
                   onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
                 />
                 {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}><X size={20} /></button>}
@@ -539,13 +539,13 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
                     style={{
                       backgroundColor: done ? (theme === "sepia" ? bgSepia : mixWithGray(hex, theme, 0.3)) : "var(--bg-surface)",
-                      borderColor: isChecked ? (done ? "#1a1b26" : (theme === "light" ? "#1a1b26" : "#7aa2f7")) : isSelected ? "#7aa2f7" : done ? (theme === "sepia" ? bgSepia : mixWithGray(hex, theme, 0.3)) : "var(--border)",
-                      outline: isChecked ? (done ? "2px solid #1a1b2666" : (theme === "light" ? "2px solid #1a1b2644" : "2px solid #7aa2f744")) : "none"
+                      borderColor: isChecked ? (done ? "#1a1b26" : (theme === "light" ? "#1a1b26" : "var(--accent-primary)")) : isSelected ? "var(--accent-primary)" : done ? (theme === "sepia" ? bgSepia : mixWithGray(hex, theme, 0.3)) : "var(--border)",
+                      outline: isChecked ? (done ? "2px solid #1a1b2666" : (theme === "light" ? "2px solid #1a1b2644" : "2px solid color-mix(in srgb, var(--accent-primary) 27%, transparent)")) : "none"
                     }}
                   >
                     <div className={`flex ${itemSize === "1" ? "items-center" : "items-start"} gap-2`}>
                       {selectMode && (
-                        <span className={`shrink-0 ${itemSize === "1" ? "" : "mt-0.5"}`} style={{ color: isChecked ? (done ? "var(--text-on-accent)" : (theme === "light" ? "var(--text-primary)" : "#7aa2f7")) : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
+                        <span className={`shrink-0 ${itemSize === "1" ? "" : "mt-0.5"}`} style={{ color: isChecked ? (done ? "var(--text-on-accent)" : (theme === "light" ? "var(--text-primary)" : "var(--accent-primary)")) : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
                           {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                         </span>
                       )}
@@ -593,7 +593,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => { setEditTarget(work); setSelectedId(null); }}
                         className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border active:scale-95 transition-transform shadow-lg"
-                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "#7aa2f7", color: "#7aa2f7" }}
+                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--accent-primary)", color: "var(--accent-primary)" }}
                       ><Pencil size={16} /> 編集</button>
                       <button onClick={() => handleDelete(work)}
                         className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border active:scale-95 transition-transform shadow-lg"
@@ -644,14 +644,14 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     onTouchStart={(e) => { if (!selectMode) handleTouchStart(e, work.id); }}
                     onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
-                    className={`w-full border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked || isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : ""}`}
+                    className={`w-full border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked || isSelected ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/30" : ""}`}
                     style={{
                       backgroundColor: "var(--bg-surface)",
-                      borderColor: isChecked || isSelected ? "#7aa2f7" : "var(--border)"
+                      borderColor: isChecked || isSelected ? "var(--accent-primary)" : "var(--border)"
                     }}
                   >
                     {selectMode && (
-                      <span className="shrink-0" style={{ color: isChecked ? (theme === "light" ? "#1a1b26" : "#7aa2f7") : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
+                      <span className="shrink-0" style={{ color: isChecked ? (theme === "light" ? "#1a1b26" : "var(--accent-primary)") : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
                         {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                       </span>
                     )}
@@ -679,7 +679,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     <div className="absolute top-1/2 -translate-y-1/2 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => { setEditTarget(work); setSelectedId(null); }}
                         className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border active:scale-95 transition-transform shadow-lg"
-                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "#7aa2f7", color: "#7aa2f7" }}
+                        style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--accent-primary)", color: "var(--accent-primary)" }}
                       ><Pencil size={16} /> 編集</button>
                       <button onClick={() => handleDelete(work)}
                         className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl border active:scale-95 transition-transform shadow-lg"
@@ -717,7 +717,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     placeholder="追加するタグを入力"
                     className="flex-1 border rounded-xl px-3 py-2 text-sm outline-none"
                     style={{ backgroundColor: "var(--bg-base)", color: "var(--text-primary)", borderColor: "var(--border)" }}
-                    onFocus={(e) => e.currentTarget.style.borderColor = "#7aa2f7"}
+                    onFocus={(e) => e.currentTarget.style.borderColor = "var(--accent-primary)"}
                     onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
                   />
                   <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform" style={{ backgroundColor: folderHex, color: "var(--bg-base)" }}>追加</button>

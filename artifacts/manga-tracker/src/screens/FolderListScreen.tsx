@@ -74,6 +74,8 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
     }
   }, [selectMode]);
 
+  const addButtonHex = theme === "dark" ? "#7aa2f7" : theme === "light" ? "#4f9d78" : "#b38600";
+
   const sorted = [...folders];
   const filtered = search ? sorted.filter((f) => f.title.toLowerCase().includes(search.toLowerCase())) : sorted;
 
@@ -277,7 +279,6 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
             <div className="grid grid-cols-2 gap-2">
               {filtered.map((folder) => {
                 const hex = ACCENT_COLORS[folder.accentColor].hex;
-                const bgSepia = ACCENT_COLORS[folder.accentColor].bgSepia;
                 const isChecked = selectedIds.has(folder.id);
                 const pat = (folder.pattern ?? "none") as FolderPattern;
                 const workCount = folder.works?.length ?? 0;
@@ -306,7 +307,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                       className="w-full text-left active:scale-[0.97] transition-all rounded-2xl overflow-hidden"
                       style={{
                         minHeight: "100px",
-                        backgroundColor: theme === "sepia" ? bgSepia : "var(--bg-surface)",
+                        backgroundColor: "var(--bg-surface)",
                         border: isChecked
                           ? "1.5px solid #7aa2f7"
                           : `1px solid ${hex}44`,
@@ -321,17 +322,6 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                         } : {}),
                       }}
                     >
-                      {/* グラデーション背景 */}
-                      <div
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          zIndex: 1,
-                          background: `linear-gradient(120deg, ${hex}60 0%, transparent 60%)`,
-                          pointerEvents: "none",
-                        }}
-                      />
-
                       {/* 左アクセントバー */}
                       <div
                         style={{
@@ -424,7 +414,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
 
       {/* フッター：選択モード */}
       {!locked && selectMode && (
-        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/90 to-transparent">
+        <div className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-6 pt-3 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/90 to-transparent">
           <div className="max-w-lg mx-auto flex gap-2">
             <button
               onClick={() => { setShowMoveMode((v) => !v); setMoveTargetId(null); }}
@@ -464,12 +454,12 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
 
       {/* フッター：通常 */}
       {!locked && !selectMode && (
-        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/90 to-transparent">
+        <div className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-6 pt-3 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/90 to-transparent">
           <div className="max-w-lg mx-auto">
             <button
               onClick={() => setShowAdd(true)}
               className="w-full font-bold py-4 rounded-2xl text-base shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-              style={{ backgroundColor: theme === "sepia" ? "#7aa2f7" : mixWithGray("#7aa2f7", theme, 0.3), color: "var(--bg-base)", boxShadow: "0 4px 24px #7aa2f733" }}
+              style={{ backgroundColor: mixWithGray(addButtonHex, theme, 0.3), color: "var(--bg-base)", boxShadow: `0 4px 24px ${addButtonHex}33` }}
             >
               <Plus size={20} /><span>新しいフォルダを追加</span>
             </button>

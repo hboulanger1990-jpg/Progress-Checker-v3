@@ -200,7 +200,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                         fontSize: 14, cursor: "pointer", width: "100%", textAlign: "left",
                       }}
                     >
-                      <BookMarked size={16} /> 語彙ノート
+                      <BookMarked size={16} />  Tango
                     </button>
                     <div className="border-t border-[var(--border)]" />
                     {user ? (

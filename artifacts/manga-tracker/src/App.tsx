@@ -372,6 +372,7 @@ export default function App() {
          theme={theme}
          onToggleTheme={() => setTheme((v) => v === "dark" ? "light" : v === "light" ? "sepia" : "dark")}
          onSwitchToProgress={() => setAppMode("progress")}
+         onSwitchToStock={() => setAppMode("stock")} 
         />
       )}
       {appMode === "progress" && view.screen === "folders" && (

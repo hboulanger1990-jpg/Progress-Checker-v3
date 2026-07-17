@@ -31,7 +31,7 @@ type Density = "word" | "meaning" | "all";
 type SearchType = "word" | "work";
 
 type FavFilter = "none" | "ge1" | "eq1" | "eq2" | "eq3";
-const FAV_FILTER_ORDER: FavFilter[] = ["none", "ge1", "eq1", "eq2", "eq3"];
+const FAV_FILTER_ORDER: FavFilter[] = ["none", "eq1", "eq2", "eq3", "ge1"];
 function nextFavFilter(f: FavFilter): FavFilter {
   return FAV_FILTER_ORDER[(FAV_FILTER_ORDER.indexOf(f) + 1) % FAV_FILTER_ORDER.length];
 }
@@ -473,7 +473,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           {(["word", "meaning", "all"] as const).map((v, i) => (
             <button key={v} className="vocab-focusable" style={{ ...styles.segBtn, ...(density === v ? styles.segBtnActive : {}), ...(i > 0 ? { borderLeft: "0.5px solid var(--border)" } : {}) }}
               onClick={() => { setDensity(v); setExpanded(null); }}>
-              {v === "word" ? "単語" : v === "meaning" ? "＋よみがな" : "＋意味"}
+              {v === "word" ? "単語" : v === "meaning" ? "＋よみ" : "＋意味"}
             </button>
           ))}
         </div>
@@ -680,7 +680,7 @@ function EntryCard({ entry: e, density, viewMode, expanded, onToggle, onEdit, on
                 onClick={e2 => { e2.stopPropagation(); onSetFavLevel(n === favLevel ? 0 : n); }}
                 aria-label={`★${n}に設定`}
               >
-                <Star size={20} fill={n <= favLevel ? "currentColor" : "none"} />
+                <span style={{ fontSize: 20, lineHeight: 1 }}>{n <= favLevel ? "★" : "☆"}</span>
               </button>
             ))}
           </div>

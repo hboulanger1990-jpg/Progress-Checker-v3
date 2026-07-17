@@ -233,6 +233,9 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
   useEffect(() => {
     function handlePointerUp(e: Event) {
       const target = e.target as HTMLElement | null;
+      // input/textareaはユーザーが文字入力するためにフォーカスを保持する必要があるので対象外にする
+      // （対象にすると、タップ直後に強制blurされて入力できなくなってしまう）
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
       const el = target?.closest<HTMLElement>(".vocab-focusable, .vocab-card");
       if (el) {
         // クリック本来の処理（onClickハンドラ）を先に走らせてからフォーカスを外す

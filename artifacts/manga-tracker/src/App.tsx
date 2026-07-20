@@ -169,9 +169,18 @@ export default function App() {
     }));
   }
   function deleteGenre(folderId: string, name: string) {
-    // folder.genres から名前を外すだけでよい。該当作品の work.genre はあえて書き換えない
-    // （リストに存在しないジャンル名は表示側で自動的に「未分類」扱いになるため）
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, genres: (f.genres ?? []).filter((g) => g !== name), updatedAt: Date.now() }));
+    // ジャンル名をfolder.genresから外し、そのジャンルに属していた作品も丸ごと削除する
+    // （F画面のフォルダ削除と同じ「フォルダ／ジャンルごと中身も削除される」という挙動に統一。
+    //   以前は work.genre を書き換えずに残していたため、削除するたびに未分類へ作品が溜まってしまっていた）
+    mutate((prev) => prev.map((f) => {
+      if (f.id !== folderId) return f;
+      return {
+        ...f,
+        genres: (f.genres ?? []).filter((g) => g !== name),
+        works: f.works.filter((w) => w.genre !== name),
+        updatedAt: Date.now(),
+      };
+    }));
   }
 
   // 複数フォルダの中身（works・genres）を1つのフォルダに統合し、統合元フォルダは削除する。

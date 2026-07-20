@@ -400,13 +400,10 @@ export default function WorkDetailScreen({
     >
       <header className="sticky top-0 z-10 bg-[var(--bg-base)]/95 backdrop-blur-md border-b border-[var(--border-dim)] px-4 py-3">
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3 mb-3">
             <button onClick={onBack} className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2" style={{ color: folderHex }}>
               <ArrowLeft size={20} /><span>戻る</span>
             </button>
-            <div className="flex-1 min-w-0">
-              <h1 className="font-bold text-base leading-tight truncate" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>{work.title}</h1>
-            </div>
             <div className="flex items-center gap-2 shrink-0">
               {/* ロックボタン */}
               <button onClick={onToggleLock}
@@ -501,6 +498,10 @@ export default function WorkDetailScreen({
               </button>
             </div>
           </div>
+
+          <h1 className="font-bold text-base leading-snug break-words" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>
+            {work.title}
+          </h1>
         </div>
       </header>
 

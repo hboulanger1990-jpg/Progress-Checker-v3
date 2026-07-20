@@ -124,7 +124,11 @@ export default function GenreListScreen({
                 }}
                 onEdit={() => setEditTarget(g)}
                 onDelete={() => {
-                  if (window.confirm(`「${g}」を削除しますか？\nこのジャンルの作品は未分類に移動します。`)) {
+                  const n = countFor(g);
+                  const message = n > 0
+                    ? `「${g}」と中の${n}作品を削除しますか？\nこの操作は元に戻せません。`
+                    : `「${g}」を削除しますか？\nこの操作は元に戻せません。`;
+                  if (window.confirm(message)) {
                     onDeleteGenre(g);
                   }
                 }}

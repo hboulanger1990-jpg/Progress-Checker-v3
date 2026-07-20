@@ -308,13 +308,10 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
       <header className="sticky top-0 z-10 backdrop-blur-md border-b px-4 pt-2 pb-3"
         style={{ backgroundColor: "color-mix(in srgb, var(--bg-base) 95%, transparent)", borderColor: "var(--border-dim)" }}>
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center justify-between gap-3 mb-3">
             <button onClick={onBack} className="shrink-0 flex items-center gap-1 text-sm font-medium active:scale-95 transition-transform py-1 pr-2" style={{ color: folderHex }}>
               <ArrowLeft size={20} /><span>戻る</span>
             </button>
-            <h1 className="flex-1 font-bold text-base truncate" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>
-              {genreFilter === undefined ? folder.title : genreFilter === null ? "未分類" : genreFilter}
-            </h1>
             <div className="flex items-center gap-2 shrink-0">
               {/* ロックボタン */}
               <button
@@ -402,18 +399,27 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
             </div>
           </div>
 
-          <div
-            className="flex items-center justify-between mb-1"
-            style={selectMode ? {} : { visibility: "hidden" }}
-          >
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{selectedIds.size}件選択中</span>
-            <button
-              onClick={toggleSelectAll}
-              className="text-xs font-medium px-2.5 py-1 rounded-lg active:scale-95 transition-transform"
-              style={{ color: folderHex }}
+          {/* タイトルと「選択中/全選択」は同じ場所に重ねて描画し、
+              選択モードの切り替えで見た目だけが入れ替わる（高さは常に両方の最大値で固定＝ジャンプしない） */}
+          <div className="mb-1" style={{ display: "grid" }}>
+            <div style={{ gridArea: "1 / 1", display: "flex", alignItems: "center", ...(selectMode ? { visibility: "hidden" } : {}) }}>
+              <h1 className="font-bold text-base leading-snug break-words" style={{ color: theme === "sepia" ? "#c0392b" : "var(--text-primary)" }}>
+                {genreFilter === undefined ? folder.title : genreFilter === null ? "未分類" : genreFilter}
+              </h1>
+            </div>
+            <div
+              className="flex items-center justify-between"
+              style={{ gridArea: "1 / 1", ...(selectMode ? {} : { visibility: "hidden" }) }}
             >
-              {filtered.length > 0 && filtered.every((w) => selectedIds.has(w.id)) ? "全解除" : "全選択"}
-            </button>
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>{selectedIds.size}件選択中</span>
+              <button
+                onClick={toggleSelectAll}
+                className="text-xs font-medium px-2.5 py-1 rounded-lg active:scale-95 transition-transform"
+                style={{ color: folderHex }}
+              >
+                {filtered.length > 0 && filtered.every((w) => selectedIds.has(w.id)) ? "全解除" : "全選択"}
+              </button>
+            </div>
           </div>
 
           {!isReadMode && (
@@ -764,16 +770,6 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     )}
                   </div>
                 )}
-                <button
-                  onClick={() => {
-                    if (!window.confirm(`選択中の${selectedIds.size}件を削除しますか？`)) return;
-                    selectedIds.forEach((id) => onDelete(id));
-                    setSelectMode(false);
-                    setSelectedIds(new Set());
-                  }}
-                  className="w-full py-2 rounded-xl border text-sm active:scale-95 transition-transform"
-                  style={{ borderColor: "#f7768e", color: "#f7768e", backgroundColor: "#f7768e11" }}
-                >選択中の作品を削除</button>
                 <button onClick={() => setShowTagAction(false)} className="w-full py-2 rounded-xl border text-sm active:scale-95 transition-transform"
                   style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>閉じる</button>
               </div>
@@ -792,6 +788,20 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                       : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-sub)" }
                   }
                 ><ArrowDownToLine size={16} /> 移動</button>
+                <button
+                  onClick={() => {
+                    if (!window.confirm(`選択中の${selectedIds.size}件を削除しますか？\nこの操作は元に戻せません。`)) return;
+                    selectedIds.forEach((id) => onDelete(id));
+                    setSelectMode(false);
+                    setSelectedIds(new Set());
+                  }}
+                  disabled={selectedIds.size === 0}
+                  className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  style={selectedIds.size === 0
+                    ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
+                    : { backgroundColor: "#f7768e", borderColor: "#f7768e", color: "var(--bg-base)" }
+                  }
+                ><Trash2 size={16} /> 削除</button>
               </div>
             )}
           </div>

@@ -78,6 +78,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
   const [showMoveMode, setShowMoveMode] = useState(false);
   const [showTagAction, setShowTagAction] = useState(false);
   const [tagActionInput, setTagActionInput] = useState("");
+  const [showTagSuggest, setShowTagSuggest] = useState(false);
 
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => folder.works[0]?.sortOrder ?? "default");
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -264,6 +265,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
 
   const selectedWorks = folder.works.filter((w) => selectedIds.has(w.id));
   const commonTags = allTags.filter((tag) => selectedWorks.every((w) => (w.tags ?? []).includes(tag)));
+  const tagSuggestions = allTags.filter((tag) => tag.toLowerCase().includes(tagActionInput.trim().toLowerCase()));
 
   function handleSortOrderChange(order: SortOrder) {
     setSortOrder(order);
@@ -716,17 +718,35 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
             {showTagAction ? (
               <div className="rounded-2xl p-4 space-y-3 border"
                 style={{ backgroundColor: "var(--bg-base)", borderColor: "var(--border)" }}>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>選択中の操作（{selectedIds.size}件）</p>
-                <div className="flex gap-2">
-                  <input value={tagActionInput} onChange={(e) => setTagActionInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); bulkAddTag(tagActionInput); } }}
-                    placeholder="追加するタグを入力"
-                    className="flex-1 border rounded-xl px-3 py-2 text-sm outline-none"
-                    style={{ backgroundColor: "var(--bg-base)", color: "var(--text-primary)", borderColor: "var(--border)" }}
-                    onFocus={(e) => e.currentTarget.style.borderColor = "var(--accent-primary)"}
-                    onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
-                  />
-                  <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform" style={{ backgroundColor: folderHex, color: "var(--bg-base)" }}>追加</button>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>操作（{selectedIds.size}件）</p>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <input value={tagActionInput} onChange={(e) => setTagActionInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); bulkAddTag(tagActionInput); } }}
+                      placeholder="追加するタグを入力"
+                      className="flex-1 border rounded-xl px-3 py-2 text-sm outline-none"
+                      style={{ backgroundColor: "var(--bg-base)", color: "var(--text-primary)", borderColor: "var(--border)" }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent-primary)"; setShowTagSuggest(true); }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; setShowTagSuggest(false); }}
+                    />
+                    <button onClick={() => bulkAddTag(tagActionInput)} className="px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform" style={{ backgroundColor: folderHex, color: "var(--bg-base)" }}>追加</button>
+                  </div>
+                  {showTagSuggest && tagSuggestions.length > 0 && (
+                    <div
+                      className="absolute left-0 right-0 top-full mt-1.5 z-10 rounded-xl border p-2 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto"
+                      style={{ backgroundColor: "var(--bg-overlay)", borderColor: "var(--border)" }}
+                    >
+                      {tagSuggestions.map((tag) => (
+                        <button
+                          key={tag}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => bulkAddTag(tag)}
+                          className="text-xs px-2.5 py-1 rounded-full border active:scale-95 transition-transform"
+                          style={{ borderColor: folderHex, color: folderHex, backgroundColor: `${folderHex}18` }}
+                        >#{tag}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {commonTags.length > 0 && (
                   <div>
@@ -775,12 +795,12 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
               </div>
             ) : (
               <div className="flex gap-2">
-                <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
-                  style={{ borderColor: "var(--border)", color: "var(--text-sub)", backgroundColor: "var(--bg-surface)" }}><Tag size={16} /> 選択中の操作</button>
+                <button onClick={() => setShowTagAction(true)} className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
+                  style={{ borderColor: "var(--border)", color: "var(--text-sub)", backgroundColor: "var(--bg-surface)" }}><Tag size={16} /> 操作</button>
                 <button
                   onClick={() => { setShowMoveMode((v) => !v); setMoveTargetId(null); }}
                   disabled={selectedIds.size === 0}
-                  className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
                   style={showMoveMode
                     ? { backgroundColor: folderHex, borderColor: folderHex, color: "var(--bg-base)" }
                     : selectedIds.size === 0
@@ -796,7 +816,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     setSelectedIds(new Set());
                   }}
                   disabled={selectedIds.size === 0}
-                  className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
                   style={selectedIds.size === 0
                     ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
                     : { backgroundColor: "#f7768e", borderColor: "#f7768e", color: "var(--bg-base)" }

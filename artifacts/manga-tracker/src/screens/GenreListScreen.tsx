@@ -177,7 +177,7 @@ export default function GenreListScreen({
               className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
               style={selectedGenres.size === 0
                 ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
-                : { backgroundColor: "#9ece6a22", borderColor: "#9ece6a", color: "#9ece6a" }
+                : { backgroundColor: "#9ece6a", borderColor: "#9ece6a", color: "var(--bg-base)" }
               }
             ><Combine size={16} /> 統合</button>
           </div>

@@ -162,7 +162,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                 }}
                 className="h-9 flex items-center justify-center rounded-xl border active:scale-95 transition-all px-2 gap-1"
                 style={selectMode
-                  ? { backgroundColor: "#7aa2f7", borderColor: "#7aa2f7", color: "var(--bg-base)" }
+                  ? { backgroundColor: "var(--accent-primary)", borderColor: "var(--accent-primary)", color: "var(--bg-base)" }
                   : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: locked ? "var(--border)" : "var(--text-muted)" }
                 }
                 title={selectMode ? "選択モード終了" : locked ? "ロック中" : "選択モード"}
@@ -246,7 +246,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="フォルダを検索..."
-                className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[var(--text-dim)]"
+                className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[var(--accent-primary)] transition-colors placeholder-[var(--text-dim)]"
               />
               {search && (
                 <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"><X size={20} /></button>
@@ -271,7 +271,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                 isTarget={moveTargetId === "top"}
                 onToggle={() => setMoveTargetId((v) => v === "top" ? null : "top")}
                 onExecute={() => executeMoveHere("top")}
-                accentHex="#7aa2f7"
+                accentHex="var(--accent-primary)"
               />
             )}
 
@@ -309,9 +309,9 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                         minHeight: "100px",
                         backgroundColor: "var(--bg-surface)",
                         border: isChecked
-                          ? "1.5px solid #7aa2f7"
+                          ? "1.5px solid var(--accent-primary)"
                           : `1px solid ${hex}44`,
-                        boxShadow: isChecked ? "0 0 0 3px #7aa2f730" : "none",
+                        boxShadow: isChecked ? "0 0 0 3px color-mix(in srgb, var(--accent-primary) 19%, transparent)" : "none",
                         position: "relative",
                         ...(pat === "chevron" ? {
                           backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='12' viewBox='0 0 40 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 6.172L6.172 0h5.656L0 11.828V6.172zm40 5.656L28.172 0h5.656L40 6.172v5.656zM6.172 12l12-12h3.656l12 12h-5.656L20 3.828 11.828 12H6.172zm12 0L20 10.172 21.828 12h-3.656z' fill='${encodeURIComponent(hex)}' fill-opacity='0.13' fill-rule='evenodd'/%3E%3C/svg%3E")`,
@@ -366,7 +366,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                       >
                         <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
                           {selectMode && (
-                            <span className="shrink-0 mt-0.5" style={{ color: isChecked ? "#7aa2f7" : "var(--text-dim)" }}>
+                            <span className="shrink-0 mt-0.5" style={{ color: isChecked ? "var(--accent-primary)" : "var(--text-dim)" }}>
                               {isChecked ? <CheckSquare size={16} /> : <Square size={16} />}
                             </span>
                           )}
@@ -401,7 +401,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                         isTarget={moveTargetId === folder.id}
                         onToggle={() => setMoveTargetId((v) => v === folder.id ? null : folder.id)}
                         onExecute={() => executeMoveHere(folder.id)}
-                        accentHex="#7aa2f7"
+                        accentHex="var(--accent-primary)"
                       />
                     )}
                   </div>
@@ -419,35 +419,39 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
             <button
               onClick={() => { setShowMoveMode((v) => !v); setMoveTargetId(null); }}
               disabled={selectedIds.size === 0}
-              className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
               style={showMoveMode
-                ? { backgroundColor: "#7aa2f7", borderColor: "#7aa2f7", color: "var(--bg-base)" }
+                ? { backgroundColor: "var(--accent-primary)", borderColor: "var(--accent-primary)", color: "var(--bg-base)" }
                 : selectedIds.size === 0
                   ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
                   : { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--text-sub)" }
               }
             ><ArrowDownToLine size={16} /> 移動</button>
-            {selectedIds.size > 0 && (
-              <button
-                onClick={() => setShowMergePicker(true)}
-                className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
-                style={{ backgroundColor: "#9ece6a22", borderColor: "#9ece6a", color: "#9ece6a" }}
-              ><Combine size={16} /> 統合</button>
-            )}
-            {selectedIds.size > 0 && (
-              <button
-                onClick={() => {
-                  const targets = folders.filter(f => selectedIds.has(f.id));
-                  const names = targets.map(f => `「${f.title}」`).join("、");
-                  if (!window.confirm(`${names}を削除しますか？\n中の全作品も削除されます。`)) return;
-                  targets.forEach(f => onDelete(f.id));
-                  setSelectedIds(new Set());
-                  setSelectMode(false);
-                }}
-                className="py-3 px-5 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
-                style={{ backgroundColor: "#f7768e22", borderColor: "#f7768e", color: "#f7768e" }}
-              ><Trash2 size={16} /> 削除</button>
-            )}
+            <button
+              onClick={() => setShowMergePicker(true)}
+              disabled={selectedIds.size === 0}
+              className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
+              style={selectedIds.size === 0
+                ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
+                : { backgroundColor: "#9ece6a", borderColor: "#9ece6a", color: "var(--bg-base)" }
+              }
+            ><Combine size={16} /> 統合</button>
+            <button
+              onClick={() => {
+                const targets = folders.filter(f => selectedIds.has(f.id));
+                const names = targets.map(f => `「${f.title}」`).join("、");
+                if (!window.confirm(`${names}を削除しますか？\n中の全作品も削除されます。`)) return;
+                targets.forEach(f => onDelete(f.id));
+                setSelectedIds(new Set());
+                setSelectMode(false);
+              }}
+              disabled={selectedIds.size === 0}
+              className="flex-1 py-3 rounded-2xl border text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2 whitespace-nowrap"
+              style={selectedIds.size === 0
+                ? { backgroundColor: "var(--bg-surface)", borderColor: "var(--border)", color: "var(--border)" }
+                : { backgroundColor: "#f7768e", borderColor: "#f7768e", color: "var(--bg-base)" }
+              }
+            ><Trash2 size={16} /> 削除</button>
           </div>
         </div>
       )}

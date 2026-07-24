@@ -1,6 +1,6 @@
 // VERSION-MARK: border-longhand-fix-01
 import { useState, useEffect, useRef } from "react";
-import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText, Star, ChevronDown, Menu, Package, Layers, ArrowLeftRight, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText, Star, ChevronDown, ChevronUp, Menu, Package, Layers, ArrowLeftRight, Shuffle, Check } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { loadVocabFromCloud, saveVocabToCloud } from "../storage";
 
@@ -493,6 +493,39 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
 
   const confirmEntry = confirmId ? entries.find(e => e.id === confirmId) : null;
 
+  // ---- カードモード用：今の表示モード（作品別/50音順/タグ別）に沿った並びを作る ----
+  // タグ別は1語が複数グループに属することがあるが、カードで同じ単語が重複して出るのは不便なので
+  // 表示上の見出し順を維持しつつ、初出のみを採用して重複を除いている。
+  function getOrderedForCardMode(): VocabEntry[] {
+    if (viewMode === "kana") {
+      return [...filtered].sort(kanaSort);
+    }
+    if (viewMode === "tag") {
+      const groups: Record<string, VocabEntry[]> = {};
+      filtered.forEach(e => {
+        const tags = e.tags && e.tags.length > 0 ? e.tags : ["タグなし"];
+        tags.forEach(t => { if (!groups[t]) groups[t] = []; groups[t].push(e); });
+      });
+      const tagNames = Object.keys(groups).sort((a, b) => {
+        if (a === "タグなし") return 1;
+        if (b === "タグなし") return -1;
+        return a.localeCompare(b, "ja");
+      });
+      const seen = new Set<string>();
+      const result: VocabEntry[] = [];
+      tagNames.forEach(t => groups[t].forEach(e => { if (!seen.has(e.id)) { seen.add(e.id); result.push(e); } }));
+      return result;
+    }
+    // group（作品別）：表示と同じくObject.entriesの挿入順（初出順）をそのまま使う
+    const groups: Record<string, VocabEntry[]> = {};
+    filtered.forEach(e => {
+      const k = e.work || "作品不明";
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(e);
+    });
+    return Object.values(groups).flat();
+  }
+
   return (
     <div style={styles.screen}>
       {/* ヘッダー */}
@@ -526,6 +559,15 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
             aria-label="検索"
           >
             <Search size={16} />
+          </button>
+          <button
+            className="vocab-focusable"
+            style={styles.iconBtn}
+            onClick={() => setCardMode(true)}
+            disabled={filtered.length === 0}
+            aria-label="カードで見る"
+          >
+            <Layers size={16} />
           </button>
           <button
             className="vocab-focusable"
@@ -581,9 +623,6 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
             </button>
           ))}
         </div>
-        <button className="vocab-focusable" style={styles.cardModeBtn} onClick={() => setCardMode(true)} aria-label="カードで見る" disabled={filtered.length === 0}>
-          <Layers size={15} />
-        </button>
       </div>
 
       {/* 検索バー */}
@@ -742,6 +781,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
                 </button>
               </div>
               <div style={styles.aiHint}>Lensで読み取った文字をコピーして、ここに貼り付け</div>
+              <div style={styles.aiHint}>カードモードの「意味から」で単語を伏せたい部分は、**単語** のように囲むと「○○」で隠せます</div>
             </FormGroup>
 
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
@@ -767,7 +807,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
       )}
 
       {cardMode && (
-        <CardModeScreen entries={filtered} onClose={() => setCardMode(false)} />
+        <CardModeScreen entries={getOrderedForCardMode()} onClose={() => setCardMode(false)} />
       )}
 
       <style>{`
@@ -923,44 +963,85 @@ function FormGroup({ label, children }: { label: string; children: React.ReactNo
 }
 
 // ---- カードモード ----
-// 一覧画面の絞り込み結果（entries）をそのまま1枚ずつめくって見る画面。
+// getOrderedForCardMode()で今の表示モードに沿って並べたentriesを1枚ずつ見る画面。
 // 「まだ／覚えた」の記録はこの画面を開いている間だけのその場限り（永続保存はしない）。
 type ReviewStatus = "learned" | "notYet";
 type CardDirection = "wordFirst" | "meaningFirst";
 
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// 用例文中の「**単語**」を伏字（○×文字数）にする。**マークが無い場合は単語の素の文字列一致でフォールバック。
+// wordRevealed=trueのときは**マークだけ取り除いて素の文章として表示する。
+function renderExampleText(example: string, word: string, wordRevealed: boolean): string {
+  const hasMark = /\*\*(.+?)\*\*/.test(example);
+  if (wordRevealed) {
+    return hasMark ? example.replace(/\*\*(.+?)\*\*/g, "$1") : example;
+  }
+  if (hasMark) {
+    return example.replace(/\*\*(.+?)\*\*/g, (_, inner: string) => "○".repeat(inner.length));
+  }
+  if (word && example.includes(word)) {
+    return example.split(word).join("○".repeat(word.length));
+  }
+  return example;
+}
+
+function TapReveal({ label, shown, text, onTap }: { label: string; shown: boolean; text: string; onTap: () => void }) {
+  return (
+    <div className="vocab-card" style={styles.cardTapRegion} onClick={onTap}>
+      {shown
+        ? <p style={styles.cardStageText}>{text}</p>
+        : <p style={styles.cardTapHint}>{`タップで${label}を表示`}</p>}
+    </div>
+  );
+}
+
 function CardModeScreen({ entries, onClose }: { entries: VocabEntry[]; onClose: () => void }) {
+  const [deck, setDeck] = useState<VocabEntry[]>(entries);
   const [idx, setIdx] = useState(0);
-  const [revealStage, setRevealStage] = useState<0 | 1 | 2>(0);
   const [direction, setDirection] = useState<CardDirection>("wordFirst");
   const [reviewMode, setReviewMode] = useState(false);
   const [status, setStatus] = useState<Record<string, ReviewStatus>>({});
-  const touchStartX = useRef<number | null>(null);
+  const [meaningShown, setMeaningShown] = useState(false); // 単語から時：意味
+  const [wordShown, setWordShown] = useState(false);       // 意味から時：単語
+  const [exampleShown, setExampleShown] = useState(false); // 両方共通：用例文
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
-  useEffect(() => { setRevealStage(0); }, [idx]);
+  useEffect(() => { setMeaningShown(false); setWordShown(false); setExampleShown(false); }, [idx]);
 
-  const cur = entries[idx];
-  const hasNext = idx < entries.length - 1;
+  const cur = deck[idx];
+  const hasNext = idx < deck.length - 1;
   const hasPrev = idx > 0;
 
-  function goNext() { setIdx(i => Math.min(entries.length - 1, i + 1)); }
+  function goNext() { setIdx(i => Math.min(deck.length - 1, i + 1)); }
   function goPrev() { setIdx(i => Math.max(0, i - 1)); }
+  function handleShuffle() { setDeck(d => shuffleArray(d)); setIdx(0); }
 
   function markStatus(id: string, s: ReviewStatus) {
     setStatus(prev => ({ ...prev, [id]: s }));
     if (hasNext) goNext();
   }
 
-  function handleTouchStart(e: React.TouchEvent) { touchStartX.current = e.touches[0].clientX; }
+  // 上下スワイプでカード送り（横方向優先の動きは誤操作防止のため無視する）
+  function handleTouchStart(e: React.TouchEvent) { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
   function handleTouchEnd(e: React.TouchEvent) {
-    if (touchStartX.current == null) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    if (Math.abs(dx) < 50) return;
-    if (dx < 0 && hasNext) goNext();
-    if (dx > 0 && hasPrev) goPrev();
+    if (!touchStart.current) return;
+    const dx = e.changedTouches[0].clientX - touchStart.current.x;
+    const dy = e.changedTouches[0].clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.abs(dy) < 50 || Math.abs(dx) > Math.abs(dy)) return;
+    if (dy < 0 && hasNext) goNext();
+    if (dy > 0 && hasPrev) goPrev();
   }
 
-  if (entries.length === 0 || !cur) {
+  if (deck.length === 0 || !cur) {
     return (
       <div style={styles.cardOverlay}>
         <div style={styles.cardTopRow}>
@@ -971,31 +1052,30 @@ function CardModeScreen({ entries, onClose }: { entries: VocabEntry[]; onClose: 
     );
   }
 
-  const maxStage: 0 | 1 | 2 = cur.example ? 2 : cur.meaning || cur.word ? 1 : 0;
-  const primary = direction === "wordFirst" ? cur.word : cur.meaning;
-  const primarySub = direction === "wordFirst" ? cur.reading : undefined;
-  const stage1Text = direction === "wordFirst" ? cur.meaning : (cur.reading ? `${cur.word}（${cur.reading}）` : cur.word);
-  const stage2Text = cur.example;
-
-  const learnedCount = entries.filter(e => status[e.id] === "learned").length;
-  const notYetCount = entries.filter(e => status[e.id] === "notYet").length;
-  const untouchedCount = entries.length - learnedCount - notYetCount;
+  const learnedCount = deck.filter(e => status[e.id] === "learned").length;
+  const notYetCount = deck.filter(e => status[e.id] === "notYet").length;
+  const untouchedCount = deck.length - learnedCount - notYetCount;
 
   return (
     <div style={styles.cardOverlay}>
       <div style={styles.cardTopRow}>
-        <button className="vocab-focusable" style={styles.iconBtn} onClick={onClose} aria-label="閉じる"><X size={18} /></button>
-        <button className="vocab-focusable" style={styles.cardTogglePill} onClick={() => setDirection(d => d === "wordFirst" ? "meaningFirst" : "wordFirst")}>
-          {direction === "wordFirst" ? "単語から" : "意味から"}
-          <ArrowLeftRight size={12} style={{ marginLeft: 4 }} />
-        </button>
-        <button className="vocab-focusable" style={{ ...styles.cardTogglePill, ...(reviewMode ? styles.cardTogglePillActive : {}) }} onClick={() => setReviewMode(v => !v)}>
-          復習モード
-        </button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="vocab-focusable" style={styles.iconBtn} onClick={onClose} aria-label="閉じる"><X size={18} /></button>
+          <button className="vocab-focusable" style={styles.iconBtn} onClick={handleShuffle} aria-label="シャッフル"><Shuffle size={16} /></button>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="vocab-focusable" style={styles.cardTogglePill} onClick={() => setDirection(d => d === "wordFirst" ? "meaningFirst" : "wordFirst")}>
+            {direction === "wordFirst" ? "単語から" : "意味から"}
+            <ArrowLeftRight size={12} style={{ marginLeft: 4 }} />
+          </button>
+          <button className="vocab-focusable" style={{ ...styles.cardTogglePill, ...(reviewMode ? styles.cardTogglePillActive : {}) }} onClick={() => setReviewMode(v => !v)}>
+            復習モード
+          </button>
+        </div>
       </div>
 
       <div style={styles.cardCounterRow}>
-        <span style={styles.cardCounterText}>{idx + 1} / {entries.length}</span>
+        <span style={styles.cardCounterText}>{idx + 1} / {deck.length}</span>
         {reviewMode && (
           <div style={{ display: "flex", gap: 10 }}>
             <span style={{ ...styles.cardStatusDot, color: "#f7768e" }}><span style={{ ...styles.cardStatusDotMark, background: "#f7768e" }} />{notYetCount}</span>
@@ -1005,40 +1085,39 @@ function CardModeScreen({ entries, onClose }: { entries: VocabEntry[]; onClose: 
         )}
       </div>
 
-      <div style={styles.cardNavRow}>
-        <button className="vocab-focusable" style={styles.cardNavBtn} onClick={goPrev} disabled={!hasPrev} aria-label="前の単語">
-          <ChevronLeft size={20} style={{ opacity: hasPrev ? 1 : 0.3 }} />
-        </button>
+      <button className="vocab-focusable" style={{ ...styles.cardVertNavBtn, alignSelf: "center" }} onClick={goPrev} disabled={!hasPrev} aria-label="前の単語">
+        <ChevronUp size={18} style={{ opacity: hasPrev ? 1 : 0.25 }} />
+      </button>
 
-        <div
-          className="vocab-card"
-          style={styles.cardFace}
-          onClick={() => setRevealStage(s => (s < maxStage ? (s + 1) as 0 | 1 | 2 : s))}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          <p style={styles.cardPrimary}>{primary}</p>
-          {primarySub && <p style={styles.cardPrimarySub}>{primarySub}</p>}
+      <div style={styles.cardSwipeArea} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        {direction === "wordFirst" ? (
+          <>
+            <p style={styles.cardPrimary}>{cur.word}</p>
+            {cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
 
-          {revealStage >= 1 && (
-            <div style={styles.cardStageBlock}>
-              <p style={styles.cardStageText}>{stage1Text}</p>
-            </div>
-          )}
-          {revealStage >= 2 && stage2Text && (
-            <div style={{ ...styles.cardStageBlock, borderTop: "0.5px dashed var(--border)" }}>
-              <p style={styles.cardStageTextDim}>{stage2Text}</p>
-            </div>
-          )}
-          {revealStage < maxStage && (
-            <p style={styles.cardTapHint}>{revealStage === 0 ? "タップで意味を表示" : "タップで用例文を表示"}</p>
-          )}
-        </div>
+            <TapReveal label="意味" shown={meaningShown} text={cur.meaning} onTap={() => setMeaningShown(v => !v)} />
+            {cur.example && (
+              <TapReveal label="用例文" shown={exampleShown} text={renderExampleText(cur.example, cur.word, true)} onTap={() => setExampleShown(v => !v)} />
+            )}
+            {exampleShown && cur.work && (
+              <p style={styles.cardWorkTag}>{cur.work}</p>
+            )}
+          </>
+        ) : (
+          <>
+            <p style={styles.cardPrimary}>{cur.meaning}</p>
 
-        <button className="vocab-focusable" style={styles.cardNavBtn} onClick={goNext} disabled={!hasNext} aria-label="次の単語">
-          <ChevronRight size={20} style={{ opacity: hasNext ? 1 : 0.3 }} />
-        </button>
+            <TapReveal label="単語" shown={wordShown} text={cur.reading ? `${cur.word}（${cur.reading}）` : cur.word} onTap={() => setWordShown(v => !v)} />
+            {cur.example && (
+              <TapReveal label="用例文" shown={exampleShown} text={renderExampleText(cur.example, cur.word, wordShown)} onTap={() => setExampleShown(v => !v)} />
+            )}
+          </>
+        )}
       </div>
+
+      <button className="vocab-focusable" style={{ ...styles.cardVertNavBtn, alignSelf: "center" }} onClick={goNext} disabled={!hasNext} aria-label="次の単語">
+        <ChevronDown size={18} style={{ opacity: hasNext ? 1 : 0.25 }} />
+      </button>
 
       {reviewMode && (
         <div style={styles.cardReviewBtnRow}>
@@ -1112,25 +1191,23 @@ const styles: Record<string, React.CSSProperties> = {
   btnSave: { flex: 2, padding: 10, border: "none", borderRadius: 8, background: "var(--accent-primary)", color: "var(--bg-base)", fontSize: 14, fontWeight: 500, cursor: "pointer" },
   confirmBox: { background: "var(--bg-surface)", borderRadius: 12, padding: 20, width: 260, textAlign: "center" },
   btnDel: { flex: 1, padding: 10, border: "none", borderRadius: 8, background: "#f7768e", color: "#1a1b26", fontSize: 14, fontWeight: 500, cursor: "pointer" },
-  cardModeBtn: { flexShrink: 0, marginLeft: "auto", width: 30, height: 30, borderRadius: 8, background: "var(--bg-input)", borderWidth: "0.5px", borderStyle: "solid", borderColor: "var(--border)", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   cardOverlay: { position: "fixed", inset: 0, background: "var(--bg-base)", zIndex: 55, display: "flex", flexDirection: "column", padding: "14px 16px" },
   cardTopRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 },
   cardTogglePill: { padding: "6px 10px", borderRadius: 100, background: "var(--bg-surface)", borderWidth: "0.5px", borderStyle: "solid", borderColor: "var(--border)", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", whiteSpace: "nowrap" },
   cardTogglePillActive: { background: "var(--accent-primary)", borderColor: "var(--accent-primary)", color: "var(--bg-base)", fontWeight: 500 },
-  cardCounterRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, padding: "0 2px" },
+  cardCounterRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, padding: "0 2px" },
   cardCounterText: { fontSize: 13, color: "var(--text-muted)" },
   cardStatusDot: { display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 500 },
   cardStatusDotMark: { width: 7, height: 7, borderRadius: "50%", display: "inline-block" },
-  cardNavRow: { flex: 1, display: "flex", alignItems: "center", gap: 6, marginTop: 12, minHeight: 0 },
-  cardNavBtn: { flexShrink: 0, width: 34, height: 34, borderRadius: "50%", border: "none", background: "transparent", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
-  cardFace: { flex: 1, minHeight: 240, background: "var(--bg-surface)", borderWidth: "0.5px", borderStyle: "solid", borderColor: "var(--border)", borderRadius: 14, padding: "28px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 8, cursor: "pointer", userSelect: "none" },
-  cardPrimary: { fontSize: 24, fontWeight: 500, color: "var(--text-primary)", margin: 0, lineHeight: 1.4 },
+  cardVertNavBtn: { flexShrink: 0, width: "100%", height: 26, border: "none", background: "transparent", color: "var(--text-dim)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  cardSwipeArea: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 4, padding: "8px 6px", userSelect: "none", overflowY: "auto" },
+  cardPrimary: { fontSize: 26, fontWeight: 500, color: "var(--text-primary)", margin: 0, lineHeight: 1.5 },
   cardPrimarySub: { fontSize: 14, color: "var(--text-muted)", margin: 0 },
-  cardStageBlock: { marginTop: 12, paddingTop: 12, borderTop: "0.5px solid var(--border)", width: "100%" },
-  cardStageText: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 },
-  cardStageTextDim: { fontSize: 13, color: "var(--text-dim)", lineHeight: 1.6, margin: 0 },
-  cardTapHint: { fontSize: 11, color: "var(--text-dim)", marginTop: 14 },
-  cardReviewBtnRow: { display: "flex", justifyContent: "center", gap: 40, marginTop: 20, paddingBottom: 6 },
+  cardTapRegion: { marginTop: 16, paddingTop: 16, borderTop: "0.5px dashed var(--border)", width: "100%", cursor: "pointer" },
+  cardStageText: { fontSize: 15, color: "var(--text-muted)", lineHeight: 1.7, margin: 0 },
+  cardTapHint: { fontSize: 11, color: "var(--text-dim)", margin: 0 },
+  cardWorkTag: { display: "inline-block", marginTop: 10, fontSize: 11, color: "var(--text-dim)" },
+  cardReviewBtnRow: { display: "flex", justifyContent: "center", gap: 40, marginTop: 8, paddingBottom: 6 },
   cardReviewBtn: { width: 52, height: 52, borderRadius: "50%", background: "transparent", borderWidth: "1.5px", borderStyle: "solid", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   cardEmptyWrap: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" },
 };

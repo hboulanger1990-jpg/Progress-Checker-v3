@@ -1,6 +1,6 @@
 // VERSION-MARK: border-longhand-fix-01
 import { useState, useEffect, useRef } from "react";
-import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText, Star, ChevronDown, Menu, Package } from "lucide-react";
+import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText, Star, ChevronDown, Menu, Package, Layers, ArrowLeftRight, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { loadVocabFromCloud, saveVocabToCloud } from "../storage";
 
@@ -13,6 +13,7 @@ export interface VocabEntry {
   work?: string;
   example?: string;
   favLevel?: 1 | 2 | 3; // ★の段階（お気に入りではなく頻出度等の区別用）。未設定 or 0 = ★なし
+  tags?: string[]; // 自由入力タグ。1語に複数付与可（workとは別軸、作品をまたいだ横断分類用）
   createdAt: number;
 }
 
@@ -26,9 +27,9 @@ function migrateEntries(raw: any[]): VocabEntry[] {
   return raw.map(migrateEntry);
 }
 
-type ViewMode = "group" | "kana";
+type ViewMode = "group" | "kana" | "tag";
 type Density = "word" | "meaning" | "all";
-type SearchType = "word" | "work";
+type SearchType = "word" | "work" | "tag";
 
 type FavFilter = "none" | "ge1" | "eq1" | "eq2" | "eq3";
 const FAV_FILTER_ORDER: FavFilter[] = ["none", "eq1", "eq2", "eq3", "ge1"];
@@ -140,13 +141,14 @@ function escapeCsvField(field: string): string {
 }
 
 function exportToCsv(entries: VocabEntry[]) {
-  const headers = ["単語", "よみがな", "意味", "登場作品", "用例", "登録日"];
+  const headers = ["単語", "よみがな", "意味", "登場作品", "用例", "タグ", "登録日"];
   const rows = entries.map(e => [
     e.word,
     e.reading ?? "",
     e.meaning,
     e.work ?? "",
     e.example ?? "",
+    (e.tags ?? []).join("、"),
     new Date(e.createdAt).toLocaleDateString("ja-JP"),
   ]);
   const csvLines = [headers, ...rows].map(row => row.map(f => escapeCsvField(String(f))).join(","));
@@ -174,16 +176,20 @@ interface Props {
 }
 
 // ---- フォームの初期値 ----
-const EMPTY_FORM = { word: "", reading: "", meaning: "", work: "", example: "" };
+const EMPTY_FORM = { word: "", reading: "", meaning: "", work: "", example: "", tags: [] as string[] };
 
 export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProgress, onSwitchToStock }: Props) {
   const [entries, setEntries] = useState<VocabEntry[]>(() => loadVocab());
   const [viewMode, setViewMode] = useState<ViewMode>("group");
   const [density, setDensity] = useState<Density>("word");
+  const [cardMode, setCardMode] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchType, setSearchType] = useState<SearchType>("word");
+  const [showWorkSuggest, setShowWorkSuggest] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string[]>([]); // 検索「タグ」タブでのAND絞り込み対象
+  const [tagInput, setTagInput] = useState(""); // モーダル内のタグ新規入力欄
   const [favFilter, setFavFilter] = useState<FavFilter>("none");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
@@ -246,10 +252,48 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
     return () => document.removeEventListener("click", handlePointerUp, true);
   }, []);
 
+  // ---- 検索「作品」タブ用の候補一覧 ----
+  // 登録済みentriesのworkをユニーク化し、入力中の文字で絞り込む（部分一致）。
+  // ★絞り込み中（favFilter !== "none"）は、その条件を満たす単語がある作品だけを候補に出す。
+  function getWorkSuggestions(query: string): string[] {
+    const set = new Set<string>();
+    entries.forEach(e => {
+      if (!e.work) return;
+      if (favFilter !== "none" && !matchesFavFilter(e.favLevel || 0, favFilter)) return;
+      set.add(e.work);
+    });
+    const all = Array.from(set).sort((a, b) => a.localeCompare(b, "ja"));
+    if (!query) return all;
+    return all.filter(w => w.includes(query));
+  }
+
+  // ---- 登録済みタグの一覧（重複除去・50音順） ----
+  // モーダルの新規タグ候補用。全entriesが対象（favFilterの影響を受けない）
+  function getAllTags(): string[] {
+    const set = new Set<string>();
+    entries.forEach(e => { (e.tags || []).forEach(t => set.add(t)); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ja"));
+  }
+
+  // ---- 検索「タグ」タブ用の候補一覧 ----
+  // ★絞り込み中（favFilter !== "none"）は、その条件を満たす単語が持つタグだけを候補に出す。
+  function getTagSuggestionsForSearch(): string[] {
+    const set = new Set<string>();
+    entries.forEach(e => {
+      if (favFilter !== "none" && !matchesFavFilter(e.favLevel || 0, favFilter)) return;
+      (e.tags || []).forEach(t => set.add(t));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ja"));
+  }
+
   // ---- フィルタ ----
   function getFiltered() {
     let result = entries;
-    if (searchQuery) {
+    if (searchType === "tag") {
+      if (tagFilter.length > 0) {
+        result = result.filter(e => tagFilter.every(t => (e.tags || []).includes(t)));
+      }
+    } else if (searchQuery) {
       result = searchType === "word"
         ? result.filter(e => e.word.includes(searchQuery) || (e.reading && e.reading.includes(searchQuery)))
         : result.filter(e => e.work && e.work.includes(searchQuery));
@@ -289,7 +333,8 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
   // ---- モーダル ----
   function openAdd() {
     setEditId(null);
-    setForm({ ...EMPTY_FORM, work: lastWork });
+    setForm({ ...EMPTY_FORM, work: lastWork, tags: [] });
+    setTagInput("");
     setAiHint("");
     setModalOpen(true);
   }
@@ -297,26 +342,43 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
     const e = entries.find(e => e.id === id);
     if (!e) return;
     setEditId(id);
-    setForm({ word: e.word, reading: e.reading ?? "", meaning: e.meaning, work: e.work ?? "", example: e.example ?? "" });
+    setForm({ word: e.word, reading: e.reading ?? "", meaning: e.meaning, work: e.work ?? "", example: e.example ?? "", tags: e.tags ? [...e.tags] : [] });
+    setTagInput("");
     setAiHint("");
     setModalOpen(true);
   }
-  function closeModal() { setModalOpen(false); setEditId(null); setForm(EMPTY_FORM); setAiHint(""); }
+  function closeModal() { setModalOpen(false); setEditId(null); setForm(EMPTY_FORM); setTagInput(""); setAiHint(""); }
+
+  // ---- タグ入力欄の操作 ----
+  function addTagToForm(raw: string) {
+    const t = raw.trim();
+    if (!t) return;
+    setForm(f => f.tags.includes(t) ? f : { ...f, tags: [...f.tags, t] });
+  }
+  function removeTagFromForm(t: string) {
+    setForm(f => ({ ...f, tags: f.tags.filter(x => x !== t) }));
+  }
+  function toggleTagFilter(t: string) {
+    setTagFilter(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+    setExpanded(null);
+  }
 
   function saveEntry() {
     if (!form.word.trim()) return;
     const workValue = form.work.trim();
+    const tagsValue = form.tags.length > 0 ? form.tags : undefined;
     if (editId) {
       setEntries(prev => prev.map(e => e.id !== editId ? e : {
         ...e, word: form.word.trim(), reading: form.reading.trim(),
         meaning: form.meaning.trim(), work: workValue, example: form.example.trim(),
+        tags: tagsValue,
       }));
     } else {
       const entry: VocabEntry = {
         id: crypto.randomUUID(), createdAt: Date.now(),
         word: form.word.trim(), reading: form.reading.trim(),
         meaning: form.meaning.trim(), work: workValue || "作品不明",
-        example: form.example.trim(),
+        example: form.example.trim(), tags: tagsValue,
       };
       setEntries(prev => [entry, ...prev]);
     }
@@ -371,6 +433,41 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           </div>
         );
       });
+    } else if (viewMode === "tag") {
+      const groups: Record<string, VocabEntry[]> = {};
+      filtered.forEach(e => {
+        const tags = e.tags && e.tags.length > 0 ? e.tags : ["タグなし"];
+        tags.forEach(t => {
+          if (!groups[t]) groups[t] = [];
+          groups[t].push(e);
+        });
+      });
+      // 「タグなし」は末尾に固定し、それ以外は50音順
+      const tagNames = Object.keys(groups).sort((a, b) => {
+        if (a === "タグなし") return 1;
+        if (b === "タグなし") return -1;
+        return a.localeCompare(b, "ja");
+      });
+      return tagNames.map(tag => {
+        const es = groups[tag];
+        const collapseKey = `tag:${tag}`;
+        const collapsed = collapsedGroups.has(collapseKey);
+        return (
+          <div key={tag}>
+            <div
+              style={{ ...styles.groupLabel, display: "flex", alignItems: "center", gap: 4, cursor: "pointer", userSelect: "none" }}
+              onClick={() => toggleGroupCollapse(collapseKey)}
+            >
+              <ChevronDown size={14} style={{ flexShrink: 0, transition: "transform 0.15s", transform: collapsed ? "rotate(-90deg)" : "none" }} />
+              <span>{tag}</span><span style={styles.countBadge}>{es.length}語</span>
+            </div>
+            {/* 1語が複数タグに属する場合、複数の見出しに重複して出てくるためkeyはtag+idの組み合わせにする */}
+            {!collapsed && es.map(e => <EntryCard key={`${tag}-${e.id}`} entry={e} density={density} viewMode={viewMode}
+              expanded={expanded === e.id} onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
+              onEdit={() => openEdit(e.id)} onDelete={() => setConfirmId(e.id)} onSetFavLevel={lvl => setFavLevel(e.id, lvl)} />)}
+          </div>
+        );
+      });
     } else {
       const sorted = [...filtered].sort(kanaSort);
       // 直前セクションとの隣接だけで束ねると、ソート結果がわずかにブレた場合
@@ -409,7 +506,14 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           <button
             className="vocab-focusable"
             style={{ ...styles.iconBtn, ...(favFilter !== "none" ? styles.iconBtnActive : {}), position: "relative" }}
-            onClick={() => { setFavFilter(nextFavFilter); setExpanded(null); }}
+            onClick={() => {
+              setFavFilter(f => {
+                const next = nextFavFilter(f);
+                if (next !== "none") setSearchOpen(true); // 絞り込み件数が見えるよう検索欄も開く
+                return next;
+              });
+              setExpanded(null);
+            }}
             aria-label="お気に入りレベルで絞り込み"
           >
             <Star size={16} fill={favFilter !== "none" ? "currentColor" : "none"} />
@@ -418,7 +522,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           <button
             className="vocab-focusable"
             style={{ ...styles.iconBtn, ...(searchOpen ? styles.iconBtnActive : {}) }}
-            onClick={() => { setSearchOpen(v => !v); if (searchOpen) { setSearchQuery(""); } }}
+            onClick={() => { setSearchOpen(v => !v); if (searchOpen) { setSearchQuery(""); setTagFilter([]); } }}
             aria-label="検索"
           >
             <Search size={16} />
@@ -461,10 +565,10 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
       {/* ツールバー */}
       <div style={styles.toolbar}>
         <div style={styles.seg}>
-          {(["group", "kana"] as const).map((v, i) => (
+          {(["group", "kana", "tag"] as const).map((v, i) => (
             <button key={v} className="vocab-focusable" style={{ ...styles.segBtn, ...(viewMode === v ? styles.segBtnActive : {}), ...(i > 0 ? { borderLeft: "0.5px solid var(--border)" } : {}) }}
               onClick={() => { setViewMode(v); setExpanded(null); }}>
-              {v === "group" ? "作品別" : "50音順"}
+              {v === "group" ? "作品別" : v === "kana" ? "50音順" : "タグ別"}
             </button>
           ))}
         </div>
@@ -477,24 +581,70 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
             </button>
           ))}
         </div>
-        <span style={styles.filteredCount}>{filtered.length}語</span>
+        <button className="vocab-focusable" style={styles.cardModeBtn} onClick={() => setCardMode(true)} aria-label="カードで見る" disabled={filtered.length === 0}>
+          <Layers size={15} />
+        </button>
       </div>
 
       {/* 検索バー */}
       {searchOpen && (
         <div style={styles.searchBar}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input ref={searchRef} style={styles.searchInput} value={searchQuery} placeholder="検索…"
-              onChange={e => { setSearchQuery(e.target.value); setExpanded(null); }} />
-            <button className="vocab-focusable" style={styles.iconBtn} onClick={() => { setSearchOpen(false); setSearchQuery(""); }} aria-label="閉じる"><X size={16} /></button>
-          </div>
-          <div style={{ display: "flex", gap: 0, marginTop: 6, border: "0.5px solid var(--border)", borderRadius: 6, overflow: "hidden", width: "fit-content" }}>
-            {(["word", "work"] as const).map((v, i) => (
-              <button key={v} className="vocab-focusable" style={{ ...styles.segBtn, ...(searchType === v ? styles.segBtnActive : {}), ...(i > 0 ? { borderLeft: "0.5px solid var(--border)" } : {}) }}
-                onClick={() => { setSearchType(v); setExpanded(null); }}>
-                {v === "word" ? "単語" : "作品"}
-              </button>
-            ))}
+          {searchType !== "tag" ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", position: "relative" }}>
+              <input ref={searchRef} style={styles.searchInput} value={searchQuery} placeholder="検索…"
+                onChange={e => { setSearchQuery(e.target.value); setExpanded(null); }}
+                onClick={() => { if (searchType === "work") setShowWorkSuggest(v => !v); }}
+                onBlur={() => { window.setTimeout(() => setShowWorkSuggest(false), 120); }} />
+              <button className="vocab-focusable" style={styles.iconBtn} onClick={() => { setSearchOpen(false); setSearchQuery(""); setShowWorkSuggest(false); setTagFilter([]); }} aria-label="閉じる"><X size={16} /></button>
+
+              {showWorkSuggest && searchType === "work" && (
+                <div style={styles.suggestDropdown}>
+                  {getWorkSuggestions(searchQuery).length === 0 ? (
+                    <div style={styles.suggestEmpty}>候補なし</div>
+                  ) : (
+                    getWorkSuggestions(searchQuery).map(w => (
+                      <button key={w} className="vocab-focusable" style={styles.suggestItem}
+                        onMouseDown={e2 => e2.preventDefault()}
+                        onClick={() => { setSearchQuery(w); setShowWorkSuggest(false); setExpanded(null); }}>
+                        {w}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+              {getTagSuggestionsForSearch().length === 0 ? (
+                <span style={styles.suggestEmpty}>タグがまだありません</span>
+              ) : (
+                getTagSuggestionsForSearch().map(t => {
+                  const active = tagFilter.includes(t);
+                  return (
+                    <button key={t} className="vocab-focusable" style={{ ...styles.tagFilterChip, ...(active ? styles.tagFilterChipActive : {}) }}
+                      onClick={() => toggleTagFilter(t)}>
+                      {t}
+                    </button>
+                  );
+                })
+              )}
+              <button className="vocab-focusable" style={{ ...styles.iconBtn, marginLeft: "auto" }} onClick={() => { setSearchOpen(false); setSearchQuery(""); setTagFilter([]); }} aria-label="閉じる"><X size={16} /></button>
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+            <div style={{ display: "flex", gap: 0, border: "0.5px solid var(--border)", borderRadius: 6, overflow: "hidden" }}>
+              {(["word", "work", "tag"] as const).map((v, i) => (
+                <button key={v} className="vocab-focusable" style={{ ...styles.segBtn, ...(searchType === v ? styles.segBtnActive : {}), ...(i > 0 ? { borderLeft: "0.5px solid var(--border)" } : {}) }}
+                  onClick={() => {
+                    setSearchType(v);
+                    setExpanded(null);
+                    setShowWorkSuggest(false);
+                  }}>
+                  {v === "word" ? "単語" : v === "work" ? "作品" : "タグ"}
+                </button>
+              ))}
+            </div>
+            <span style={styles.filteredCount}>{filtered.length}語</span>
           </div>
         </div>
       )}
@@ -545,6 +695,42 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
                 onChange={e => setForm(f => ({ ...f, work: e.target.value }))} />
             </FormGroup>
 
+            <FormGroup label="タグ（任意）">
+              {form.tags.length > 0 && (
+                <div style={{ ...styles.tagChipRow, marginBottom: 8 }}>
+                  {form.tags.map(t => (
+                    <span key={t} style={styles.tagChip}>
+                      {t}
+                      <button type="button" className="vocab-focusable" style={styles.tagChipRemove} onClick={() => removeTagFromForm(t)} aria-label={`${t}を削除`}>
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 6 }}>
+                <input className="vocab-focusable" style={styles.input} value={tagInput} placeholder="例：仏教語（入力してEnter）"
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTagToForm(tagInput); setTagInput(""); } }} />
+                <button type="button" className="vocab-focusable" style={styles.aiBtn} onClick={() => { addTagToForm(tagInput); setTagInput(""); }} aria-label="タグを追加">
+                  <Plus size={13} /><span>追加</span>
+                </button>
+              </div>
+              {(() => {
+                const suggestions = getAllTags().filter(t => !form.tags.includes(t) && (!tagInput || t.includes(tagInput)));
+                return suggestions.length > 0 && (
+                  <div style={{ ...styles.tagChipRow, marginTop: 8 }}>
+                    {suggestions.map(t => (
+                      <button key={t} type="button" className="vocab-focusable" style={styles.tagSuggestChip}
+                        onClick={() => { addTagToForm(t); setTagInput(""); }}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </FormGroup>
+
             <FormGroup label="用例文">
               <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
                 <textarea className="vocab-focusable" rows={3} style={{ ...styles.input, ...styles.textarea, flex: 1 }} value={form.example}
@@ -578,6 +764,10 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
             </div>
           </div>
         </div>
+      )}
+
+      {cardMode && (
+        <CardModeScreen entries={filtered} onClose={() => setCardMode(false)} />
       )}
 
       <style>{`
@@ -653,8 +843,9 @@ function EntryCard({ entry: e, density, viewMode, expanded, onToggle, onEdit, on
   const expandShowReading = false; // よみがなは常にインライン表示するので詳細セクションには出さない
   const expandShowMeaning = !!e.meaning;
   const expandShowExample = !!e.example;
-  const expandShowWork = viewMode === "kana" && !!e.work;
-  const hasDetail = expandShowReading || expandShowMeaning || expandShowExample || expandShowWork;
+  const expandShowWork = (viewMode === "kana" || viewMode === "tag") && !!e.work;
+  const expandShowTags = !!(e.tags && e.tags.length > 0);
+  const hasDetail = expandShowReading || expandShowMeaning || expandShowExample || expandShowWork || expandShowTags;
 
   return (
     <div
@@ -711,6 +902,11 @@ function EntryCard({ entry: e, density, viewMode, expanded, onToggle, onEdit, on
           {expandShowWork && (
             <div><span style={styles.workTag}>{e.work}</span></div>
           )}
+          {expandShowTags && (
+            <div style={styles.tagChipRow}>
+              {e.tags!.map(t => <span key={t} style={styles.tagChip}>{t}</span>)}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -722,6 +918,138 @@ function FormGroup({ label, children }: { label: string; children: React.ReactNo
     <div style={{ marginBottom: 12 }}>
       <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 3 }}>{label}</div>
       {children}
+    </div>
+  );
+}
+
+// ---- カードモード ----
+// 一覧画面の絞り込み結果（entries）をそのまま1枚ずつめくって見る画面。
+// 「まだ／覚えた」の記録はこの画面を開いている間だけのその場限り（永続保存はしない）。
+type ReviewStatus = "learned" | "notYet";
+type CardDirection = "wordFirst" | "meaningFirst";
+
+function CardModeScreen({ entries, onClose }: { entries: VocabEntry[]; onClose: () => void }) {
+  const [idx, setIdx] = useState(0);
+  const [revealStage, setRevealStage] = useState<0 | 1 | 2>(0);
+  const [direction, setDirection] = useState<CardDirection>("wordFirst");
+  const [reviewMode, setReviewMode] = useState(false);
+  const [status, setStatus] = useState<Record<string, ReviewStatus>>({});
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => { setRevealStage(0); }, [idx]);
+
+  const cur = entries[idx];
+  const hasNext = idx < entries.length - 1;
+  const hasPrev = idx > 0;
+
+  function goNext() { setIdx(i => Math.min(entries.length - 1, i + 1)); }
+  function goPrev() { setIdx(i => Math.max(0, i - 1)); }
+
+  function markStatus(id: string, s: ReviewStatus) {
+    setStatus(prev => ({ ...prev, [id]: s }));
+    if (hasNext) goNext();
+  }
+
+  function handleTouchStart(e: React.TouchEvent) { touchStartX.current = e.touches[0].clientX; }
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 50) return;
+    if (dx < 0 && hasNext) goNext();
+    if (dx > 0 && hasPrev) goPrev();
+  }
+
+  if (entries.length === 0 || !cur) {
+    return (
+      <div style={styles.cardOverlay}>
+        <div style={styles.cardTopRow}>
+          <button className="vocab-focusable" style={styles.iconBtn} onClick={onClose} aria-label="閉じる"><X size={18} /></button>
+        </div>
+        <div style={styles.cardEmptyWrap}><p style={styles.empty}>対象の単語がありません</p></div>
+      </div>
+    );
+  }
+
+  const maxStage: 0 | 1 | 2 = cur.example ? 2 : cur.meaning || cur.word ? 1 : 0;
+  const primary = direction === "wordFirst" ? cur.word : cur.meaning;
+  const primarySub = direction === "wordFirst" ? cur.reading : undefined;
+  const stage1Text = direction === "wordFirst" ? cur.meaning : (cur.reading ? `${cur.word}（${cur.reading}）` : cur.word);
+  const stage2Text = cur.example;
+
+  const learnedCount = entries.filter(e => status[e.id] === "learned").length;
+  const notYetCount = entries.filter(e => status[e.id] === "notYet").length;
+  const untouchedCount = entries.length - learnedCount - notYetCount;
+
+  return (
+    <div style={styles.cardOverlay}>
+      <div style={styles.cardTopRow}>
+        <button className="vocab-focusable" style={styles.iconBtn} onClick={onClose} aria-label="閉じる"><X size={18} /></button>
+        <button className="vocab-focusable" style={styles.cardTogglePill} onClick={() => setDirection(d => d === "wordFirst" ? "meaningFirst" : "wordFirst")}>
+          {direction === "wordFirst" ? "単語から" : "意味から"}
+          <ArrowLeftRight size={12} style={{ marginLeft: 4 }} />
+        </button>
+        <button className="vocab-focusable" style={{ ...styles.cardTogglePill, ...(reviewMode ? styles.cardTogglePillActive : {}) }} onClick={() => setReviewMode(v => !v)}>
+          復習モード
+        </button>
+      </div>
+
+      <div style={styles.cardCounterRow}>
+        <span style={styles.cardCounterText}>{idx + 1} / {entries.length}</span>
+        {reviewMode && (
+          <div style={{ display: "flex", gap: 10 }}>
+            <span style={{ ...styles.cardStatusDot, color: "#f7768e" }}><span style={{ ...styles.cardStatusDotMark, background: "#f7768e" }} />{notYetCount}</span>
+            <span style={{ ...styles.cardStatusDot, color: "#9ece6a" }}><span style={{ ...styles.cardStatusDotMark, background: "#9ece6a" }} />{learnedCount}</span>
+            <span style={{ ...styles.cardStatusDot, color: "var(--text-dim)" }}><span style={{ ...styles.cardStatusDotMark, background: "var(--text-dim)" }} />{untouchedCount}</span>
+          </div>
+        )}
+      </div>
+
+      <div style={styles.cardNavRow}>
+        <button className="vocab-focusable" style={styles.cardNavBtn} onClick={goPrev} disabled={!hasPrev} aria-label="前の単語">
+          <ChevronLeft size={20} style={{ opacity: hasPrev ? 1 : 0.3 }} />
+        </button>
+
+        <div
+          className="vocab-card"
+          style={styles.cardFace}
+          onClick={() => setRevealStage(s => (s < maxStage ? (s + 1) as 0 | 1 | 2 : s))}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <p style={styles.cardPrimary}>{primary}</p>
+          {primarySub && <p style={styles.cardPrimarySub}>{primarySub}</p>}
+
+          {revealStage >= 1 && (
+            <div style={styles.cardStageBlock}>
+              <p style={styles.cardStageText}>{stage1Text}</p>
+            </div>
+          )}
+          {revealStage >= 2 && stage2Text && (
+            <div style={{ ...styles.cardStageBlock, borderTop: "0.5px dashed var(--border)" }}>
+              <p style={styles.cardStageTextDim}>{stage2Text}</p>
+            </div>
+          )}
+          {revealStage < maxStage && (
+            <p style={styles.cardTapHint}>{revealStage === 0 ? "タップで意味を表示" : "タップで用例文を表示"}</p>
+          )}
+        </div>
+
+        <button className="vocab-focusable" style={styles.cardNavBtn} onClick={goNext} disabled={!hasNext} aria-label="次の単語">
+          <ChevronRight size={20} style={{ opacity: hasNext ? 1 : 0.3 }} />
+        </button>
+      </div>
+
+      {reviewMode && (
+        <div style={styles.cardReviewBtnRow}>
+          <button className="vocab-focusable" style={{ ...styles.cardReviewBtn, color: "#f7768e", borderColor: "#f7768e" }} onClick={() => markStatus(cur.id, "notYet")} aria-label="まだ">
+            <X size={22} />
+          </button>
+          <button className="vocab-focusable" style={{ ...styles.cardReviewBtn, color: "#9ece6a", borderColor: "#9ece6a" }} onClick={() => markStatus(cur.id, "learned")} aria-label="覚えた">
+            <Check size={22} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -745,6 +1073,9 @@ const styles: Record<string, React.CSSProperties> = {
   filteredCount: { marginLeft: "auto", fontSize: 12, color: "var(--accent-primary, #7aa2f7)", whiteSpace: "nowrap" },
   searchBar: { padding: "8px 16px", background: "var(--bg-surface)", borderBottom: "0.5px solid var(--border)" },
   searchInput: { flex: 1, padding: "7px 10px", borderRadius: 8, border: "0.5px solid var(--border)", background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, width: "100%" },
+  suggestDropdown: { position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--bg-overlay)", border: "0.5px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.3)", zIndex: 40, maxHeight: 180, overflowY: "auto" },
+  suggestItem: { display: "block", width: "100%", textAlign: "left", padding: "8px 10px", background: "transparent", border: "none", color: "var(--text-primary)", fontSize: 13, cursor: "pointer" },
+  suggestEmpty: { padding: "8px 10px", fontSize: 12, color: "var(--text-dim)" },
   content: { padding: "12px 16px" },
   groupLabel: { fontSize: 12, fontWeight: 500, color: "var(--text-muted)", padding: "14px 0 6px", letterSpacing: "0.03em" },
   countBadge: { fontSize: 12, color: "var(--text-dim)", fontWeight: 400, marginLeft: 5 },
@@ -758,6 +1089,12 @@ const styles: Record<string, React.CSSProperties> = {
   detailText: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 },
   exampleBox: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.7, background: "var(--bg-overlay)", borderRadius: 8, padding: "8px 10px", borderLeft: "2.5px solid var(--border-dim)" },
   workTag: { display: "inline-block", fontSize: 11, background: "var(--bg-overlay)", color: "var(--text-muted)", border: "0.5px solid var(--border)", borderRadius: 100, padding: "2px 8px" },
+  tagChipRow: { display: "flex", flexWrap: "wrap", gap: 6 },
+  tagChip: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, background: "var(--bg-overlay)", color: "var(--text-muted)", border: "0.5px solid var(--border)", borderRadius: 100, padding: "2px 8px" },
+  tagChipRemove: { display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0 },
+  tagSuggestChip: { fontSize: 11, background: "transparent", color: "var(--text-muted)", border: "0.5px dashed var(--border)", borderRadius: 100, padding: "3px 9px", cursor: "pointer" },
+  tagFilterChip: { fontSize: 12, background: "var(--bg-input)", color: "var(--text-muted)", borderWidth: "0.5px", borderStyle: "solid", borderColor: "var(--border)", borderRadius: 100, padding: "5px 10px", cursor: "pointer" },
+  tagFilterChipActive: { background: "var(--accent-primary)", color: "var(--bg-base)", borderColor: "var(--accent-primary)", fontWeight: 500 },
   actBtn: { width: 30, height: 30, borderRadius: 8, border: "0.5px solid var(--border)", background: "var(--bg-overlay)", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   actBtnDel: {},
   favStarRow: { display: "flex", alignItems: "center" },
@@ -775,4 +1112,25 @@ const styles: Record<string, React.CSSProperties> = {
   btnSave: { flex: 2, padding: 10, border: "none", borderRadius: 8, background: "var(--accent-primary)", color: "var(--bg-base)", fontSize: 14, fontWeight: 500, cursor: "pointer" },
   confirmBox: { background: "var(--bg-surface)", borderRadius: 12, padding: 20, width: 260, textAlign: "center" },
   btnDel: { flex: 1, padding: 10, border: "none", borderRadius: 8, background: "#f7768e", color: "#1a1b26", fontSize: 14, fontWeight: 500, cursor: "pointer" },
+  cardModeBtn: { flexShrink: 0, marginLeft: "auto", width: 30, height: 30, borderRadius: 8, background: "var(--bg-input)", borderWidth: "0.5px", borderStyle: "solid", borderColor: "var(--border)", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  cardOverlay: { position: "fixed", inset: 0, background: "var(--bg-base)", zIndex: 55, display: "flex", flexDirection: "column", padding: "14px 16px" },
+  cardTopRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  cardTogglePill: { padding: "6px 10px", borderRadius: 100, background: "var(--bg-surface)", borderWidth: "0.5px", borderStyle: "solid", borderColor: "var(--border)", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", whiteSpace: "nowrap" },
+  cardTogglePillActive: { background: "var(--accent-primary)", borderColor: "var(--accent-primary)", color: "var(--bg-base)", fontWeight: 500 },
+  cardCounterRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, padding: "0 2px" },
+  cardCounterText: { fontSize: 13, color: "var(--text-muted)" },
+  cardStatusDot: { display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 500 },
+  cardStatusDotMark: { width: 7, height: 7, borderRadius: "50%", display: "inline-block" },
+  cardNavRow: { flex: 1, display: "flex", alignItems: "center", gap: 6, marginTop: 12, minHeight: 0 },
+  cardNavBtn: { flexShrink: 0, width: 34, height: 34, borderRadius: "50%", border: "none", background: "transparent", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  cardFace: { flex: 1, minHeight: 240, background: "var(--bg-surface)", borderWidth: "0.5px", borderStyle: "solid", borderColor: "var(--border)", borderRadius: 14, padding: "28px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 8, cursor: "pointer", userSelect: "none" },
+  cardPrimary: { fontSize: 24, fontWeight: 500, color: "var(--text-primary)", margin: 0, lineHeight: 1.4 },
+  cardPrimarySub: { fontSize: 14, color: "var(--text-muted)", margin: 0 },
+  cardStageBlock: { marginTop: 12, paddingTop: 12, borderTop: "0.5px solid var(--border)", width: "100%" },
+  cardStageText: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 },
+  cardStageTextDim: { fontSize: 13, color: "var(--text-dim)", lineHeight: 1.6, margin: 0 },
+  cardTapHint: { fontSize: 11, color: "var(--text-dim)", marginTop: 14 },
+  cardReviewBtnRow: { display: "flex", justifyContent: "center", gap: 40, marginTop: 20, paddingBottom: 6 },
+  cardReviewBtn: { width: 52, height: 52, borderRadius: "50%", background: "transparent", borderWidth: "1.5px", borderStyle: "solid", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  cardEmptyWrap: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" },
 };

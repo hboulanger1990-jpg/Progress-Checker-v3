@@ -115,6 +115,7 @@ export default function GenreListScreen({
                 label={g}
                 count={countFor(g)}
                 hex={folderHex}
+                theme={theme}
                 locked={locked}
                 selectMode={selectMode}
                 isChecked={selectedGenres.has(g)}
@@ -139,6 +140,7 @@ export default function GenreListScreen({
                 label="未分類"
                 count={unclassifiedCount}
                 hex={folderHex}
+                theme={theme}
                 locked={locked}
                 muted
                 onClick={() => { if (!selectMode) onSelectGenre(null); }}
@@ -223,11 +225,12 @@ export default function GenreListScreen({
 }
 
 function GenreCard({
-  label, count, hex, muted, locked, selectMode, isChecked, onClick, onEdit, onDelete,
+  label, count, hex, theme, muted, locked, selectMode, isChecked, onClick, onEdit, onDelete,
 }: {
   label: string;
   count: number;
   hex: string;
+  theme: "dark" | "light" | "sepia";
   muted?: boolean;
   locked?: boolean;
   selectMode?: boolean;
@@ -237,10 +240,16 @@ function GenreCard({
   onDelete?: () => void;
 }) {
   const showActions = !muted && !locked && !selectMode && (onEdit || onDelete);
+  const selectBorderColor = theme === "dark" ? "#ffffff" : "#000000";
   return (
     <div
-      className="rounded-2xl border overflow-hidden flex items-stretch"
-      style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}
+      className="rounded-2xl overflow-hidden flex items-stretch"
+      style={{
+        backgroundColor: "var(--bg-surface)",
+        borderWidth: "1.5px",
+        borderStyle: "solid",
+        borderColor: isChecked ? selectBorderColor : "var(--border)",
+      }}
     >
       <button
         onClick={onClick}
@@ -249,7 +258,7 @@ function GenreCard({
       >
         <span className="flex items-center gap-2 min-w-0">
           {selectMode && !muted && (
-            <span className="shrink-0" style={{ color: isChecked ? "var(--accent-primary)" : "var(--text-dim)" }}>
+            <span className="shrink-0" style={{ color: isChecked ? selectBorderColor : "var(--text-dim)" }}>
               {isChecked ? <CheckSquare size={16} /> : <Square size={16} />}
             </span>
           )}

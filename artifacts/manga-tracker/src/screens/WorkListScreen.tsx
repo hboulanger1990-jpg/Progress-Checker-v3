@@ -88,6 +88,7 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
 
   const isReadMode = folder.type === "read";
   const folderHex = ACCENT_COLORS[folder.accentColor].hex;
+  const selectBorderColor = theme === "dark" ? "#ffffff" : "#000000";
   const sortOptions = isReadMode ? READ_SORT_OPTIONS : PROGRESS_SORT_OPTIONS;
   const folderDefaults = {
     labelUnread: folder.defaultLabelUnread || "未完了",
@@ -547,13 +548,12 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
                     style={{
                       backgroundColor: done ? (theme === "sepia" ? bgSepia : mixWithGray(hex, theme, 0.3)) : "var(--bg-surface)",
-                      borderColor: isChecked ? (done ? "#1a1b26" : (theme === "light" ? "#1a1b26" : "var(--accent-primary)")) : isSelected ? "var(--accent-primary)" : done ? (theme === "sepia" ? bgSepia : mixWithGray(hex, theme, 0.3)) : "var(--border)",
-                      outline: isChecked ? (done ? "2px solid #1a1b2666" : (theme === "light" ? "2px solid #1a1b2644" : "2px solid color-mix(in srgb, var(--accent-primary) 27%, transparent)")) : "none"
+                      borderColor: isChecked ? selectBorderColor : isSelected ? "var(--accent-primary)" : done ? (theme === "sepia" ? bgSepia : mixWithGray(hex, theme, 0.3)) : "var(--border)",
                     }}
                   >
                     <div className={`flex ${itemSize === "1" ? "items-center" : "items-start"} gap-2`}>
                       {selectMode && (
-                        <span className={`shrink-0 ${itemSize === "1" ? "" : "mt-0.5"}`} style={{ color: isChecked ? (done ? "var(--text-on-accent)" : (theme === "light" ? "var(--text-primary)" : "var(--accent-primary)")) : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
+                        <span className={`shrink-0 ${itemSize === "1" ? "" : "mt-0.5"}`} style={{ color: isChecked ? selectBorderColor : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
                           {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                         </span>
                       )}
@@ -652,14 +652,14 @@ export default function WorkListScreen({ folder, locked, theme, genreFilter, onT
                     onTouchStart={(e) => { if (!selectMode) handleTouchStart(e, work.id); }}
                     onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
                     onContextMenu={(e) => { if (!selectMode && !locked) { e.preventDefault(); setSelectedId(work.id); } }}
-                    className={`w-full border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all flex items-center gap-3 ${isChecked || isSelected ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/30" : ""}`}
+                    className="w-full border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all flex items-center gap-3"
                     style={{
                       backgroundColor: "var(--bg-surface)",
-                      borderColor: isChecked || isSelected ? "var(--accent-primary)" : "var(--border)"
+                      borderColor: isChecked ? selectBorderColor : isSelected ? "var(--accent-primary)" : "var(--border)",
                     }}
                   >
                     {selectMode && (
-                      <span className="shrink-0" style={{ color: isChecked ? (theme === "light" ? "#1a1b26" : "var(--accent-primary)") : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
+                      <span className="shrink-0" style={{ color: isChecked ? selectBorderColor : theme === "light" ? "var(--text-primary)" : "var(--text-dim)" }}>
                         {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
                       </span>
                     )}

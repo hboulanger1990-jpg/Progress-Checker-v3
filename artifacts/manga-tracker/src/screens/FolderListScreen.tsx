@@ -75,6 +75,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
   }, [selectMode]);
 
   const addButtonHex = theme === "dark" ? "#7aa2f7" : theme === "light" ? "#4f9d78" : "#b38600";
+  const selectBorderColor = theme === "dark" ? "#ffffff" : "#000000";
 
   const sorted = [...folders];
   const filtered = search ? sorted.filter((f) => f.title.toLowerCase().includes(search.toLowerCase())) : sorted;
@@ -308,10 +309,10 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                       style={{
                         minHeight: "100px",
                         backgroundColor: "var(--bg-surface)",
-                        border: isChecked
-                          ? "1.5px solid var(--accent-primary)"
-                          : `1px solid ${hex}44`,
-                        boxShadow: isChecked ? "0 0 0 3px color-mix(in srgb, var(--accent-primary) 19%, transparent)" : "none",
+                        borderWidth: "1.5px",
+                        borderStyle: "solid",
+                        borderColor: isChecked ? selectBorderColor : `${hex}44`,
+                        boxShadow: "none",
                         position: "relative",
                         ...(pat === "chevron" ? {
                           backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='12' viewBox='0 0 40 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 6.172L6.172 0h5.656L0 11.828V6.172zm40 5.656L28.172 0h5.656L40 6.172v5.656zM6.172 12l12-12h3.656l12 12h-5.656L20 3.828 11.828 12H6.172zm12 0L20 10.172 21.828 12h-3.656z' fill='${encodeURIComponent(hex)}' fill-opacity='0.13' fill-rule='evenodd'/%3E%3C/svg%3E")`,
@@ -366,7 +367,7 @@ export default function FolderListScreen({ folders, user, locked, theme, onToggl
                       >
                         <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
                           {selectMode && (
-                            <span className="shrink-0 mt-0.5" style={{ color: isChecked ? "var(--accent-primary)" : "var(--text-dim)" }}>
+                            <span className="shrink-0 mt-0.5" style={{ color: isChecked ? selectBorderColor : "var(--text-dim)" }}>
                               {isChecked ? <CheckSquare size={16} /> : <Square size={16} />}
                             </span>
                           )}

@@ -703,8 +703,6 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
       {modalOpen && (
         <div style={styles.overlay}>
           <div style={styles.modal}>
-            <p style={styles.modalTitle}>{editId ? "単語を編集" : "単語を追加"}</p>
-
             <FormGroup label="単語">
               <input className="vocab-focusable" style={styles.input} value={form.word} placeholder="例：逡巡"
                 onChange={e => setForm(f => ({ ...f, word: e.target.value }))} />
@@ -994,12 +992,10 @@ function renderExampleText(example: string, word: string, wordRevealed: boolean)
   return example;
 }
 
-function TapReveal({ label, shown, text, sub, serif, onTap }: { label: string; shown: boolean; text: string; sub?: string; serif?: boolean; onTap: () => void }) {
+function TapReveal({ label, shown, onTap, children }: { label: string; shown: boolean; onTap: () => void; children: React.ReactNode }) {
   return (
     <div className="vocab-card" style={styles.cardTapRegion} onClick={onTap}>
-      {shown
-        ? <>{sub && <p style={styles.cardPrimarySub}>{sub}</p>}<p style={{ ...styles.cardStageText, ...(serif ? styles.cardWordFont : {}) }}>{text}</p></>
-        : <p style={styles.cardTapHint}>{`タップで${label}を表示`}</p>}
+      {shown ? children : <p style={styles.cardTapHint}>{`タップで${label}を表示`}</p>}
     </div>
   );
 }
@@ -1128,12 +1124,16 @@ function CardModeScreen({ entries, onClose, onEdit }: { entries: VocabEntry[]; o
             <p style={{ ...styles.cardPrimary, ...styles.cardWordFont }}
               onPointerDown={() => startLongPress(cur.id)} onPointerUp={cancelLongPress} onPointerLeave={cancelLongPress} onPointerCancel={cancelLongPress}
             >{cur.word}</p>
-            {cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
-
-            <TapReveal label="意味" shown={meaningShown} text={cur.meaning} onTap={() => setMeaningShown(v => !v)} />
+            {meaningShown && cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
             {metaBlock}
+
+            <TapReveal label="意味" shown={meaningShown} onTap={() => setMeaningShown(v => !v)}>
+              <p style={styles.cardStageText}>{cur.meaning}</p>
+            </TapReveal>
             {cur.example && (
-              <TapReveal label="用例文" shown={exampleShown} text={renderExampleText(cur.example, cur.word, true)} onTap={() => setExampleShown(v => !v)} />
+              <TapReveal label="用例文" shown={exampleShown} onTap={() => setExampleShown(v => !v)}>
+                <p style={styles.cardStageText}>{renderExampleText(cur.example, cur.word, true)}</p>
+              </TapReveal>
             )}
             {workVisibleWordFirst && (
               <p style={styles.cardWorkTag}>{cur.work}</p>
@@ -1144,11 +1144,16 @@ function CardModeScreen({ entries, onClose, onEdit }: { entries: VocabEntry[]; o
             <p style={styles.cardPrimary}
               onPointerDown={() => startLongPress(cur.id)} onPointerUp={cancelLongPress} onPointerLeave={cancelLongPress} onPointerCancel={cancelLongPress}
             >{cur.meaning}</p>
-
-            <TapReveal label="単語" shown={wordShown} text={cur.reading ? `${cur.word}（${cur.reading}）` : cur.word} serif onTap={() => setWordShown(v => !v)} />
             {metaBlock}
+
+            <TapReveal label="単語" shown={wordShown} onTap={() => setWordShown(v => !v)}>
+              <p style={{ ...styles.cardWordRevealText, ...styles.cardWordFont }}>{cur.word}</p>
+              {cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
+            </TapReveal>
             {cur.example && (
-              <TapReveal label="用例文" shown={exampleShown} text={renderExampleText(cur.example, cur.word, wordShown)} onTap={() => setExampleShown(v => !v)} />
+              <TapReveal label="用例文" shown={exampleShown} onTap={() => setExampleShown(v => !v)}>
+                <p style={styles.cardStageText}>{renderExampleText(cur.example, cur.word, wordShown)}</p>
+              </TapReveal>
             )}
             {workVisibleMeaningFirst && (
               <p style={styles.cardWorkTag}>{cur.work}</p>
@@ -1224,7 +1229,6 @@ const styles: Record<string, React.CSSProperties> = {
   fab: { position: "fixed", bottom: 24, right: 20, width: 48, height: 48, borderRadius: "50%", background: "var(--accent-primary)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--bg-base)" },
   overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", zIndex: 50 },
   modal: { background: "var(--bg-surface)", borderRadius: "16px 16px 0 0", padding: "20px 16px 32px", width: "100%", maxWidth: 600, margin: "0 auto", maxHeight: "90vh", overflowY: "auto" },
-  modalTitle: { fontSize: 16, fontWeight: 500, color: "var(--text-primary)", marginBottom: 14 },
   input: { width: "100%", padding: "8px 10px", border: "0.5px solid var(--border)", borderRadius: 8, background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, fontFamily: "inherit" },
   textarea: { resize: "vertical", minHeight: 88, lineHeight: 1.6 },
   aiBtn: { flexShrink: 0, padding: "0 10px", height: 38, border: "0.5px solid var(--accent-primary)", borderRadius: 8, background: "color-mix(in srgb, var(--accent-primary) 13%, transparent)", color: "var(--accent-primary)", fontSize: 12, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" },
@@ -1246,6 +1250,7 @@ const styles: Record<string, React.CSSProperties> = {
   cardPrimary: { fontSize: 26, fontWeight: 500, color: "var(--text-primary)", margin: 0, lineHeight: 1.5 },
   cardWordFont: { fontFamily: '"Hiragino Mincho ProN", "Yu Mincho", YuMincho, "MS Mincho", serif' },
   cardPrimarySub: { fontSize: 14, color: "var(--text-muted)", margin: 0 },
+  cardWordRevealText: { fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: 0 },
   cardMetaRow: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginTop: 8 },
   cardFavText: { fontSize: 13, color: "#e0af68", letterSpacing: 1 },
   cardTapRegion: { marginTop: 16, paddingTop: 16, borderTop: "0.5px dashed var(--border)", width: "100%", cursor: "pointer" },

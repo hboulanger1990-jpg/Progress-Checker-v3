@@ -619,7 +619,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           {(["word", "meaning", "all"] as const).map((v, i) => (
             <button key={v} className="vocab-focusable" style={{ ...styles.segBtn, ...(density === v ? styles.segBtnActive : {}), ...(i > 0 ? { borderLeft: "0.5px solid var(--border)" } : {}) }}
               onClick={() => { setDensity(v); setExpanded(null); }}>
-              {v === "word" ? "単語" : v === "meaning" ? "＋よみ" : "＋意味"}
+              {v === "word" ? "単語" : v === "meaning" ? "よみ" : "意味"}
             </button>
           ))}
         </div>
@@ -634,7 +634,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
                 onChange={e => { setSearchQuery(e.target.value); setExpanded(null); }}
                 onClick={() => { if (searchType === "work") setShowWorkSuggest(v => !v); }}
                 onBlur={() => { window.setTimeout(() => setShowWorkSuggest(false), 120); }} />
-              <button className="vocab-focusable" style={styles.iconBtn} onClick={() => { setSearchOpen(false); setSearchQuery(""); setShowWorkSuggest(false); setTagFilter([]); }} aria-label="閉じる"><X size={16} /></button>
+              <button className="vocab-focusable" style={styles.iconBtn} onClick={() => { setSearchQuery(""); setShowWorkSuggest(false); }} aria-label="クリア"><X size={16} /></button>
 
               {showWorkSuggest && searchType === "work" && (
                 <div style={styles.suggestDropdown}>
@@ -667,7 +667,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
                   );
                 })
               )}
-              <button className="vocab-focusable" style={{ ...styles.iconBtn, marginLeft: "auto" }} onClick={() => { setSearchOpen(false); setSearchQuery(""); setTagFilter([]); }} aria-label="閉じる"><X size={16} /></button>
+              <button className="vocab-focusable" style={{ ...styles.iconBtn, marginLeft: "auto" }} onClick={() => { setTagFilter([]); }} aria-label="クリア"><X size={16} /></button>
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
@@ -726,7 +726,6 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
                 </button>
               </div>
               {aiHint && <div style={styles.aiHint}>{aiHint}</div>}
-              {!aiHint && <div style={styles.aiHint}>意味とよみがなを取得します（取得できた場合はよみがな欄も上書きされます。よみがなを先に入力しておくと精度が上がります）</div>}
             </FormGroup>
 
             <FormGroup label="登場作品">
@@ -780,8 +779,6 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
                   <span>Lens</span>
                 </button>
               </div>
-              <div style={styles.aiHint}>Lensで読み取った文字をコピーして、ここに貼り付け</div>
-              <div style={styles.aiHint}>カードモードの「意味から」で単語を伏せたい部分は、**単語** のように囲むと「○○」で隠せます</div>
             </FormGroup>
 
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
@@ -807,7 +804,11 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
       )}
 
       {cardMode && (
-        <CardModeScreen entries={getOrderedForCardMode()} onClose={() => setCardMode(false)} />
+        <CardModeScreen
+          entries={getOrderedForCardMode()}
+          onClose={() => { setCardMode(false); window.scrollTo(0, 0); }}
+          onEdit={id => { setCardMode(false); window.scrollTo(0, 0); openEdit(id); }}
+        />
       )}
 
       <style>{`
@@ -993,26 +994,27 @@ function renderExampleText(example: string, word: string, wordRevealed: boolean)
   return example;
 }
 
-function TapReveal({ label, shown, text, onTap }: { label: string; shown: boolean; text: string; onTap: () => void }) {
+function TapReveal({ label, shown, text, sub, serif, onTap }: { label: string; shown: boolean; text: string; sub?: string; serif?: boolean; onTap: () => void }) {
   return (
     <div className="vocab-card" style={styles.cardTapRegion} onClick={onTap}>
       {shown
-        ? <p style={styles.cardStageText}>{text}</p>
+        ? <>{sub && <p style={styles.cardPrimarySub}>{sub}</p>}<p style={{ ...styles.cardStageText, ...(serif ? styles.cardWordFont : {}) }}>{text}</p></>
         : <p style={styles.cardTapHint}>{`タップで${label}を表示`}</p>}
     </div>
   );
 }
 
-function CardModeScreen({ entries, onClose }: { entries: VocabEntry[]; onClose: () => void }) {
+function CardModeScreen({ entries, onClose, onEdit }: { entries: VocabEntry[]; onClose: () => void; onEdit: (id: string) => void }) {
   const [deck, setDeck] = useState<VocabEntry[]>(entries);
   const [idx, setIdx] = useState(0);
   const [direction, setDirection] = useState<CardDirection>("wordFirst");
   const [reviewMode, setReviewMode] = useState(false);
   const [status, setStatus] = useState<Record<string, ReviewStatus>>({});
-  const [meaningShown, setMeaningShown] = useState(false); // 単語から時：意味
+  const [meaningShown, setMeaningShown] = useState(false); // 単語から時：意味（＋読み）
   const [wordShown, setWordShown] = useState(false);       // 意味から時：単語
   const [exampleShown, setExampleShown] = useState(false); // 両方共通：用例文
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<number | null>(null);
 
   useEffect(() => { setMeaningShown(false); setWordShown(false); setExampleShown(false); }, [idx]);
 
@@ -1041,6 +1043,14 @@ function CardModeScreen({ entries, onClose }: { entries: VocabEntry[]; onClose: 
     if (dy > 0 && hasPrev) goPrev();
   }
 
+  // 単語／意味の主表示を長押しすると、その単語の編集画面を開く
+  function startLongPress(id: string) {
+    longPressTimer.current = window.setTimeout(() => onEdit(id), 550);
+  }
+  function cancelLongPress() {
+    if (longPressTimer.current) { window.clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  }
+
   if (deck.length === 0 || !cur) {
     return (
       <div style={styles.cardOverlay}>
@@ -1055,6 +1065,29 @@ function CardModeScreen({ entries, onClose }: { entries: VocabEntry[]; onClose: 
   const learnedCount = deck.filter(e => status[e.id] === "learned").length;
   const notYetCount = deck.filter(e => status[e.id] === "notYet").length;
   const untouchedCount = deck.length - learnedCount - notYetCount;
+
+  // ★評価・タグは正解のネタバレにならない付帯情報なので、常時表示する
+  const metaBlock = (cur.favLevel || (cur.tags && cur.tags.length > 0)) && (
+    <div style={styles.cardMetaRow}>
+      {!!cur.favLevel && (
+        <span style={styles.cardFavText}>
+          {[1, 2, 3].map(n => (
+            <span key={n} style={{ color: n <= (cur.favLevel || 0) ? "#e0af68" : "var(--text-dim)" }}>{n <= (cur.favLevel || 0) ? "★" : "☆"}</span>
+          ))}
+        </span>
+      )}
+      {cur.tags && cur.tags.length > 0 && (
+        <div style={styles.tagChipRow}>
+          {cur.tags.map(t => <span key={t} style={styles.tagChip}>{t}</span>)}
+        </div>
+      )}
+    </div>
+  );
+
+  // 登場作品：用例文があれば用例文の開閉に、無ければ意味／単語の開閉に連動させて出す（表示の機会を必ず用意する）
+  const showWorkOnExample = !!cur.example;
+  const workVisibleWordFirst = cur.work && (showWorkOnExample ? exampleShown : meaningShown);
+  const workVisibleMeaningFirst = cur.work && (showWorkOnExample ? exampleShown : wordShown);
 
   return (
     <div style={styles.cardOverlay}>
@@ -1092,24 +1125,33 @@ function CardModeScreen({ entries, onClose }: { entries: VocabEntry[]; onClose: 
       <div style={styles.cardSwipeArea} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {direction === "wordFirst" ? (
           <>
-            <p style={styles.cardPrimary}>{cur.word}</p>
+            <p style={{ ...styles.cardPrimary, ...styles.cardWordFont }}
+              onPointerDown={() => startLongPress(cur.id)} onPointerUp={cancelLongPress} onPointerLeave={cancelLongPress} onPointerCancel={cancelLongPress}
+            >{cur.word}</p>
             {cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
 
             <TapReveal label="意味" shown={meaningShown} text={cur.meaning} onTap={() => setMeaningShown(v => !v)} />
+            {metaBlock}
             {cur.example && (
               <TapReveal label="用例文" shown={exampleShown} text={renderExampleText(cur.example, cur.word, true)} onTap={() => setExampleShown(v => !v)} />
             )}
-            {exampleShown && cur.work && (
+            {workVisibleWordFirst && (
               <p style={styles.cardWorkTag}>{cur.work}</p>
             )}
           </>
         ) : (
           <>
-            <p style={styles.cardPrimary}>{cur.meaning}</p>
+            <p style={styles.cardPrimary}
+              onPointerDown={() => startLongPress(cur.id)} onPointerUp={cancelLongPress} onPointerLeave={cancelLongPress} onPointerCancel={cancelLongPress}
+            >{cur.meaning}</p>
 
-            <TapReveal label="単語" shown={wordShown} text={cur.reading ? `${cur.word}（${cur.reading}）` : cur.word} onTap={() => setWordShown(v => !v)} />
+            <TapReveal label="単語" shown={wordShown} text={cur.reading ? `${cur.word}（${cur.reading}）` : cur.word} serif onTap={() => setWordShown(v => !v)} />
+            {metaBlock}
             {cur.example && (
               <TapReveal label="用例文" shown={exampleShown} text={renderExampleText(cur.example, cur.word, wordShown)} onTap={() => setExampleShown(v => !v)} />
+            )}
+            {workVisibleMeaningFirst && (
+              <p style={styles.cardWorkTag}>{cur.work}</p>
             )}
           </>
         )}
@@ -1181,7 +1223,7 @@ const styles: Record<string, React.CSSProperties> = {
   empty: { textAlign: "center", padding: "40px 0", color: "var(--text-dim)", fontSize: 14 },
   fab: { position: "fixed", bottom: 24, right: 20, width: 48, height: 48, borderRadius: "50%", background: "var(--accent-primary)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--bg-base)" },
   overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", zIndex: 50 },
-  modal: { background: "var(--bg-surface)", borderRadius: "16px 16px 0 0", padding: "20px 16px 32px", width: "100%", maxWidth: 600, margin: "0 auto" },
+  modal: { background: "var(--bg-surface)", borderRadius: "16px 16px 0 0", padding: "20px 16px 32px", width: "100%", maxWidth: 600, margin: "0 auto", maxHeight: "90vh", overflowY: "auto" },
   modalTitle: { fontSize: 16, fontWeight: 500, color: "var(--text-primary)", marginBottom: 14 },
   input: { width: "100%", padding: "8px 10px", border: "0.5px solid var(--border)", borderRadius: 8, background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, fontFamily: "inherit" },
   textarea: { resize: "vertical", minHeight: 88, lineHeight: 1.6 },
@@ -1202,7 +1244,10 @@ const styles: Record<string, React.CSSProperties> = {
   cardVertNavBtn: { flexShrink: 0, width: "100%", height: 26, border: "none", background: "transparent", color: "var(--text-dim)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   cardSwipeArea: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 4, padding: "8px 6px", userSelect: "none", overflowY: "auto" },
   cardPrimary: { fontSize: 26, fontWeight: 500, color: "var(--text-primary)", margin: 0, lineHeight: 1.5 },
+  cardWordFont: { fontFamily: '"Hiragino Mincho ProN", "Yu Mincho", YuMincho, "MS Mincho", serif' },
   cardPrimarySub: { fontSize: 14, color: "var(--text-muted)", margin: 0 },
+  cardMetaRow: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginTop: 8 },
+  cardFavText: { fontSize: 13, color: "#e0af68", letterSpacing: 1 },
   cardTapRegion: { marginTop: 16, paddingTop: 16, borderTop: "0.5px dashed var(--border)", width: "100%", cursor: "pointer" },
   cardStageText: { fontSize: 15, color: "var(--text-muted)", lineHeight: 1.7, margin: 0 },
   cardTapHint: { fontSize: 11, color: "var(--text-dim)", margin: 0 },

@@ -18,5 +18,20 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tangoカードモード",
+      "short_name": "カード",
+      "description": "Tangoのカードモードを直接開く",
+      "url": "/#tango-card",
+      "icons": [
+        {
+          "src": "/favicon.png",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

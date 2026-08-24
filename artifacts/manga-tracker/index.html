@@ -6,6 +6,17 @@
     <title>Progress Checker</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="manifest" href="/manifest.json" />
+    <script>
+      // #tango-card でアクセスされたときだけ、ホーム画面追加用のmanifestを
+      // Tangoカードモード専用のもの（start_urlが直接カードモードを指すもの）に差し替える。
+      // 通常のトップURLではこのスクリプトは何もせず、従来通り/manifest.jsonが使われる。
+      (function () {
+        if (window.location.hash === "#tango-card") {
+          var link = document.querySelector('link[rel="manifest"]');
+          if (link) link.setAttribute("href", "/manifest-tango-card.json");
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

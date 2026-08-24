@@ -1,0 +1,23 @@
+{
+  "name": "Tango カードモード",
+  "short_name": "Tangoカード",
+  "id": "/tango-card",
+  "start_url": "/#tango-card",
+  "display": "standalone",
+  "background_color": "#1a1b26",
+  "theme_color": "#1a1b26",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

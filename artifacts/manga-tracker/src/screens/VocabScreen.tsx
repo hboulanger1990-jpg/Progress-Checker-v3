@@ -1,6 +1,6 @@
 // VERSION-MARK: border-longhand-fix-01
 import { useState, useEffect, useRef } from "react";
-import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText, Star, ChevronDown, ChevronUp, Menu, Package, Layers, ArrowLeftRight, Shuffle, Check } from "lucide-react";
+import { BookOpen, Search, X, Plus, Pencil, Trash2, Sparkles, SunMoon, Loader2, Download, CloudUpload, ScanText, Star, ChevronDown, ChevronUp, Menu, Package, Layers, ArrowLeftRight, Shuffle, Check, ArrowLeft } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { loadVocabFromCloud, saveVocabToCloud } from "../storage";
 
@@ -173,16 +173,27 @@ interface Props {
   onToggleTheme: () => void;
   onSwitchToProgress: () => void;
   onSwitchToStock: () => void;
+  // #tango-card への直接アクセス等、外部からカードモードのスタート画面を自動で開かせたい場合にtrue。
+  // 一度開いたらonStartInCardModeConsumedを呼んで、呼び出し側（App.tsx）にフラグを消費済みにしてもらう
+  // （でないと、Tangoを一度離れてまた戻ってきたときに毎回スタート画面が開いてしまう）
+  startInCardMode?: boolean;
+  onStartInCardModeConsumed?: () => void;
 }
 
 // ---- フォームの初期値 ----
 const EMPTY_FORM = { word: "", reading: "", meaning: "", work: "", example: "", tags: [] as string[] };
 
-export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProgress, onSwitchToStock }: Props) {
+export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProgress, onSwitchToStock, startInCardMode = false, onStartInCardModeConsumed }: Props) {
   const [entries, setEntries] = useState<VocabEntry[]>(() => loadVocab());
   const [viewMode, setViewMode] = useState<ViewMode>("group");
   const [density, setDensity] = useState<Density>("word");
   const [cardMode, setCardMode] = useState(false);
+  const [cardStartOpen, setCardStartOpen] = useState(false);
+  const [pendingCardSettings, setPendingCardSettings] = useState<{ shuffle: boolean; direction: CardDirection; reviewMode: boolean } | null>(null);
+  // 起動直後のentries読み込み（クラウド同期含む）が完了したかどうか。
+  // startInCardMode時、これがtrueになるまでは簡易ローディング画面を出す（0件のスタート画面が一瞬見えるのを防ぐ）
+  const [entriesReady, setEntriesReady] = useState(false);
+  const autoStartTriggered = useRef(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -206,7 +217,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
 
   // 起動時：ログイン中はクラウド優先で読み込み（クラウドになければlocalStorageから移行）
   useEffect(() => {
-    if (!user) { initialCloudLoadDone.current = true; return; }
+    if (!user) { initialCloudLoadDone.current = true; setEntriesReady(true); return; }
     (async () => {
       setSyncing(true);
       const cloud = await loadVocabFromCloud(user.id);
@@ -218,9 +229,20 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
       }
       initialCloudLoadDone.current = true;
       setSyncing(false);
+      setEntriesReady(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // startInCardMode（#tango-card等からの直接起動）用：entriesの読み込みが完了した時点で
+  // 一度だけカードモードのスタート画面を自動で開く。開いたら呼び出し側にフラグを消費させる。
+  useEffect(() => {
+    if (startInCardMode && entriesReady && !autoStartTriggered.current) {
+      autoStartTriggered.current = true;
+      setCardStartOpen(true);
+      onStartInCardModeConsumed?.();
+    }
+  }, [startInCardMode, entriesReady, onStartInCardModeConsumed]);
 
   // 変更のたびにlocalStorageへ保存し、ログイン中はクラウドにも保存
   useEffect(() => {
@@ -526,6 +548,11 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
     return Object.values(groups).flat();
   }
 
+  // #tango-card等からの直接起動で、まだentriesの読み込みが終わっていない間はこの画面のみ表示する
+  if (startInCardMode && !entriesReady) {
+    return <div style={styles.cardStartLoading}>読み込み中…</div>;
+  }
+
   return (
     <div style={styles.screen}>
       {/* ヘッダー */}
@@ -563,7 +590,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           <button
             className="vocab-focusable"
             style={styles.iconBtn}
-            onClick={() => setCardMode(true)}
+            onClick={() => setCardStartOpen(true)}
             disabled={filtered.length === 0}
             aria-label="カードで見る"
           >
@@ -801,11 +828,27 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
         </div>
       )}
 
-      {cardMode && (
+      {cardStartOpen && (
+        <CardStartScreen
+          totalCount={entries.length}
+          disabled={filtered.length === 0}
+          onBack={() => setCardStartOpen(false)}
+          onStart={(settings) => {
+            setPendingCardSettings(settings);
+            setCardStartOpen(false);
+            setCardMode(true);
+          }}
+        />
+      )}
+
+      {cardMode && pendingCardSettings && (
         <CardModeScreen
           entries={getOrderedForCardMode()}
-          onClose={() => { setCardMode(false); window.scrollTo(0, 0); }}
-          onEdit={id => { setCardMode(false); window.scrollTo(0, 0); openEdit(id); }}
+          initialShuffle={pendingCardSettings.shuffle}
+          initialDirection={pendingCardSettings.direction}
+          initialReviewMode={pendingCardSettings.reviewMode}
+          onClose={() => { setCardMode(false); setPendingCardSettings(null); window.scrollTo(0, 0); }}
+          onEdit={id => { setCardMode(false); setPendingCardSettings(null); window.scrollTo(0, 0); openEdit(id); }}
         />
       )}
 
@@ -1000,11 +1043,98 @@ function TapReveal({ label, shown, onTap, children }: { label: string; shown: bo
   );
 }
 
-function CardModeScreen({ entries, onClose, onEdit }: { entries: VocabEntry[]; onClose: () => void; onEdit: (id: string) => void }) {
-  const [deck, setDeck] = useState<VocabEntry[]>(entries);
-  const [idx, setIdx] = useState(0);
+// ---- カードモード・スタート画面 ----
+// カードモード本編に入る前に、並び順（順番通り/シャッフル）・表示の向き（単語から/意味から）・
+// 復習モードのON/OFFを選ぶ画面。ヘッダーのカードアイコンからでも、#tango-card への直接アクセスからでも
+// 必ずこの画面を経由する（絞り込み条件の指定は今回は対象外、将来ここに追加していく想定）。
+// totalCountはTangoの総語数（一覧トップと同じ表示）。実際にめくれる枚数は現在の絞り込み結果に従うため、
+// disabled（絞り込み結果が0件かどうか）は別途渡す。
+function CardStartScreen({
+  totalCount,
+  disabled,
+  onBack,
+  onStart,
+}: {
+  totalCount: number;
+  disabled: boolean;
+  onBack: () => void;
+  onStart: (settings: { shuffle: boolean; direction: CardDirection; reviewMode: boolean }) => void;
+}) {
+  const [shuffle, setShuffle] = useState(true);
   const [direction, setDirection] = useState<CardDirection>("wordFirst");
   const [reviewMode, setReviewMode] = useState(false);
+
+  return (
+    <div style={styles.cardStartOverlay}>
+      <div style={styles.cardStartTopRow}>
+        <button className="vocab-focusable" style={styles.iconBtn} onClick={onBack} aria-label="戻る">
+          <ArrowLeft size={18} />
+        </button>
+      </div>
+
+      <div style={styles.cardStartBody}>
+        <div style={styles.cardStartTitleWrap}>
+          <span style={styles.headerTitle}>
+            <span>Tango</span>
+            <span style={styles.totalCount}>{totalCount}</span>
+          </span>
+        </div>
+
+        <div style={styles.cardStartOptions}>
+          <div style={styles.cardStartOptionRow}>
+            <span style={styles.cardStartOptionLabel}>並び順</span>
+            <button className="vocab-focusable" style={styles.cardTogglePill} onClick={() => setShuffle(v => !v)}>
+              {shuffle ? "シャッフル" : "順番通り"}
+            </button>
+          </div>
+          <div style={styles.cardStartOptionRow}>
+            <span style={styles.cardStartOptionLabel}>表示</span>
+            <button className="vocab-focusable" style={styles.cardTogglePill} onClick={() => setDirection(d => d === "wordFirst" ? "meaningFirst" : "wordFirst")}>
+              {direction === "wordFirst" ? "単語から" : "意味から"}
+            </button>
+          </div>
+          <div style={{ ...styles.cardStartOptionRow, borderBottom: "none" }}>
+            <span style={styles.cardStartOptionLabel}>復習モード</span>
+            <button
+              className="vocab-focusable"
+              style={{ ...styles.cardTogglePill, ...(reviewMode ? styles.cardTogglePillActive : {}) }}
+              onClick={() => setReviewMode(v => !v)}
+            >
+              {reviewMode ? "ON" : "OFF"}
+            </button>
+          </div>
+        </div>
+
+        <button
+          className="vocab-focusable"
+          style={{ ...styles.cardStartBeginBtn, ...(disabled ? styles.cardStartBeginBtnDisabled : {}) }}
+          onClick={() => onStart({ shuffle, direction, reviewMode })}
+          disabled={disabled}
+        >
+          はじめる
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CardModeScreen({
+  entries, onClose, onEdit,
+  initialShuffle = false,
+  initialDirection = "wordFirst",
+  initialReviewMode = false,
+}: {
+  entries: VocabEntry[];
+  onClose: () => void;
+  onEdit: (id: string) => void;
+  initialShuffle?: boolean;
+  initialDirection?: CardDirection;
+  initialReviewMode?: boolean;
+}) {
+  const [deck, setDeck] = useState<VocabEntry[]>(() => initialShuffle ? shuffleArray(entries) : entries);
+  const [idx, setIdx] = useState(0);
+  const [direction, setDirection] = useState<CardDirection>(initialDirection);
+  const [reviewMode, setReviewMode] = useState(initialReviewMode);
   const [status, setStatus] = useState<Record<string, ReviewStatus>>({});
   const [meaningShown, setMeaningShown] = useState(false); // 単語から時：意味（＋読み）
   const [wordShown, setWordShown] = useState(false);       // 意味から時：単語
@@ -1260,4 +1390,14 @@ const styles: Record<string, React.CSSProperties> = {
   cardReviewBtnRow: { display: "flex", justifyContent: "center", gap: 40, marginTop: 8, paddingBottom: 6 },
   cardReviewBtn: { width: 52, height: 52, borderRadius: "50%", background: "transparent", borderWidth: "1.5px", borderStyle: "solid", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   cardEmptyWrap: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" },
+  cardStartOverlay: { position: "fixed", inset: 0, background: "var(--bg-base)", zIndex: 55, display: "flex", flexDirection: "column", padding: "14px 16px" },
+  cardStartTopRow: { display: "flex", alignItems: "center" },
+  cardStartBody: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 28, maxWidth: 340, width: "100%", margin: "0 auto" },
+  cardStartTitleWrap: { display: "flex", justifyContent: "center" },
+  cardStartOptions: { display: "flex", flexDirection: "column" },
+  cardStartOptionRow: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 2px", borderBottom: "0.5px solid var(--border)" },
+  cardStartOptionLabel: { fontSize: 14, color: "var(--text-primary)" },
+  cardStartBeginBtn: { marginTop: 8, padding: 14, border: "none", borderRadius: 10, background: "var(--accent-primary)", color: "var(--bg-base)", fontSize: 16, fontWeight: 600, cursor: "pointer" },
+  cardStartBeginBtnDisabled: { opacity: 0.4, cursor: "default" },
+  cardStartLoading: { minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 14, background: "var(--bg-base)" },
 };

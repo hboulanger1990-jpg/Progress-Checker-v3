@@ -19,6 +19,12 @@ type View =
 const LOCK_KEY = "pc-locked";
 const THEME_KEY = "pc-theme";
 
+// #tango-card をブックマークして直接開くと、Tangoのカードモード・スタート画面が自動で開く
+const CARD_MODE_HASH = "#tango-card";
+function shouldAutoStartCardMode() {
+  return window.location.hash === CARD_MODE_HASH;
+}
+
 export default function App() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [view, setView] = useState<View>({ screen: "folders" });
@@ -31,7 +37,9 @@ export default function App() {
   const [theme, setTheme] = useState<"dark" | "light" | "sepia">(() => {
     return (localStorage.getItem(THEME_KEY) as "dark" | "light" | "sepia") ?? "dark";
   });
-  const [appMode, setAppMode] = useState<"progress" | "stock" | "vocab">("progress");
+  const [appMode, setAppMode] = useState<"progress" | "stock" | "vocab">(() => shouldAutoStartCardMode() ? "vocab" : "progress");
+  // #tango-card から起動した場合のみtrue。VocabScreen側でスタート画面を開いたら消費（false化）される一度きりのフラグ
+  const [autoStartVocabCard, setAutoStartVocabCard] = useState<boolean>(() => shouldAutoStartCardMode());
   const initialLoadDone = useRef(false);
 
   useEffect(() => {
@@ -97,7 +105,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    history.replaceState({ screen: "folders" } satisfies View, "");
+    // #tango-card は一度きりの起動トリガーなので、読み取ったらURLからは消しておく
+    // （リロードや「戻る」のたびに毎回スタート画面が開いてしまうのを防ぐため）
+    const url = window.location.hash === CARD_MODE_HASH
+      ? window.location.pathname + window.location.search
+      : undefined;
+    history.replaceState({ screen: "folders" } satisfies View, "", url);
     let justBecameVisible = false;
     function handleVisibility() {
       if (document.visibilityState === "visible") {
@@ -381,7 +394,9 @@ export default function App() {
          theme={theme}
          onToggleTheme={() => setTheme((v) => v === "dark" ? "light" : v === "light" ? "sepia" : "dark")}
          onSwitchToProgress={() => setAppMode("progress")}
-         onSwitchToStock={() => setAppMode("stock")} 
+         onSwitchToStock={() => setAppMode("stock")}
+         startInCardMode={autoStartVocabCard}
+         onStartInCardModeConsumed={() => setAutoStartVocabCard(false)}
         />
       )}
       {appMode === "progress" && view.screen === "folders" && (

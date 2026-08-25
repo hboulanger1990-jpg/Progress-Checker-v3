@@ -832,6 +832,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
         <CardStartScreen
           totalCount={entries.length}
           disabled={filtered.length === 0}
+          onToggleTheme={onToggleTheme}
           onBack={() => setCardStartOpen(false)}
           onStart={(settings) => {
             setPendingCardSettings(settings);
@@ -848,7 +849,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
           initialDirection={pendingCardSettings.direction}
           initialReviewMode={pendingCardSettings.reviewMode}
           onClose={() => { setCardMode(false); setPendingCardSettings(null); window.scrollTo(0, 0); }}
-          onEdit={id => { setCardMode(false); setPendingCardSettings(null); window.scrollTo(0, 0); openEdit(id); }}
+          onEdit={id => openEdit(id)}
         />
       )}
 
@@ -1052,11 +1053,13 @@ function TapReveal({ label, shown, onTap, children }: { label: string; shown: bo
 function CardStartScreen({
   totalCount,
   disabled,
+  onToggleTheme,
   onBack,
   onStart,
 }: {
   totalCount: number;
   disabled: boolean;
+  onToggleTheme: () => void;
   onBack: () => void;
   onStart: (settings: { shuffle: boolean; direction: CardDirection; reviewMode: boolean }) => void;
 }) {
@@ -1070,14 +1073,15 @@ function CardStartScreen({
         <button className="vocab-focusable" style={styles.iconBtn} onClick={onBack} aria-label="戻る">
           <ArrowLeft size={18} />
         </button>
+        <button className="vocab-focusable" style={styles.iconBtn} onClick={onToggleTheme} aria-label="モード切替">
+          <SunMoon size={16} />
+        </button>
       </div>
 
       <div style={styles.cardStartBody}>
         <div style={styles.cardStartTitleWrap}>
-          <span style={styles.headerTitle}>
-            <span>Tango</span>
-            <span style={styles.totalCount}>{totalCount}</span>
-          </span>
+          <span style={styles.cardStartTitle}>Tango</span>
+          <span style={styles.cardStartTotalCount}>{totalCount}</span>
         </div>
 
         <div style={styles.cardStartOptions}>
@@ -1143,6 +1147,12 @@ function CardModeScreen({
   const longPressTimer = useRef<number | null>(null);
 
   useEffect(() => { setMeaningShown(false); setWordShown(false); setExampleShown(false); }, [idx]);
+
+  // 長押し編集などでentries（親のVocabEntry配列）が更新されたとき、
+  // デッキの並び順・位置は変えずに、各カードの中身（word/meaning等）だけ最新の内容に同期する
+  useEffect(() => {
+    setDeck(prev => prev.map(item => entries.find(e => e.id === item.id) ?? item));
+  }, [entries]);
 
   const cur = deck[idx];
   const hasNext = idx < deck.length - 1;
@@ -1254,18 +1264,26 @@ function CardModeScreen({
             <p style={{ ...styles.cardPrimary, ...styles.cardWordFont }}
               onPointerDown={() => startLongPress(cur.id)} onPointerUp={cancelLongPress} onPointerLeave={cancelLongPress} onPointerCancel={cancelLongPress}
             >{cur.word}</p>
-            {meaningShown && cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
+            {(!reviewMode || meaningShown) && cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
             {metaBlock}
 
-            <TapReveal label="意味" shown={meaningShown} onTap={() => setMeaningShown(v => !v)}>
-              <p style={styles.cardStageText}>{cur.meaning}</p>
-            </TapReveal>
-            {cur.example && (
-              <TapReveal label="用例文" shown={exampleShown} onTap={() => setExampleShown(v => !v)}>
-                <p style={styles.cardStageText}>{renderExampleText(cur.example, cur.word, true)}</p>
+            {reviewMode ? (
+              <TapReveal label="意味" shown={meaningShown} onTap={() => setMeaningShown(v => !v)}>
+                <p style={styles.cardStageText}>{cur.meaning}</p>
               </TapReveal>
+            ) : (
+              <div style={styles.cardSection}><p style={styles.cardStageText}>{cur.meaning}</p></div>
             )}
-            {workVisibleWordFirst && (
+            {cur.example && (
+              reviewMode ? (
+                <TapReveal label="用例文" shown={exampleShown} onTap={() => setExampleShown(v => !v)}>
+                  <p style={styles.cardStageText}>{renderExampleText(cur.example, cur.word, true)}</p>
+                </TapReveal>
+              ) : (
+                <div style={styles.cardSection}><p style={styles.cardStageText}>{renderExampleText(cur.example, cur.word, true)}</p></div>
+              )
+            )}
+            {(reviewMode ? workVisibleWordFirst : cur.work) && (
               <p style={styles.cardWorkTag}>{cur.work}</p>
             )}
           </>
@@ -1276,16 +1294,27 @@ function CardModeScreen({
             >{cur.meaning}</p>
             {metaBlock}
 
-            <TapReveal label="単語" shown={wordShown} onTap={() => setWordShown(v => !v)}>
-              <p style={{ ...styles.cardWordRevealText, ...styles.cardWordFont }}>{cur.word}</p>
-              {cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
-            </TapReveal>
-            {cur.example && (
-              <TapReveal label="用例文" shown={exampleShown} onTap={() => setExampleShown(v => !v)}>
-                <p style={styles.cardStageText}>{renderExampleText(cur.example, cur.word, wordShown)}</p>
+            {reviewMode ? (
+              <TapReveal label="単語" shown={wordShown} onTap={() => setWordShown(v => !v)}>
+                <p style={{ ...styles.cardWordRevealText, ...styles.cardWordFont }}>{cur.word}</p>
+                {cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
               </TapReveal>
+            ) : (
+              <div style={styles.cardSection}>
+                <p style={{ ...styles.cardWordRevealText, ...styles.cardWordFont }}>{cur.word}</p>
+                {cur.reading && <p style={styles.cardPrimarySub}>{cur.reading}</p>}
+              </div>
             )}
-            {workVisibleMeaningFirst && (
+            {cur.example && (
+              reviewMode ? (
+                <TapReveal label="用例文" shown={exampleShown} onTap={() => setExampleShown(v => !v)}>
+                  <p style={styles.cardStageText}>{renderExampleText(cur.example, cur.word, wordShown)}</p>
+                </TapReveal>
+              ) : (
+                <div style={styles.cardSection}><p style={styles.cardStageText}>{renderExampleText(cur.example, cur.word, true)}</p></div>
+              )
+            )}
+            {(reviewMode ? workVisibleMeaningFirst : cur.work) && (
               <p style={styles.cardWorkTag}>{cur.work}</p>
             )}
           </>
@@ -1357,7 +1386,7 @@ const styles: Record<string, React.CSSProperties> = {
   favStarBtn: { width: 24, height: 30, border: "none", background: "transparent", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   empty: { textAlign: "center", padding: "40px 0", color: "var(--text-dim)", fontSize: 14 },
   fab: { position: "fixed", bottom: 24, right: 20, width: 48, height: 48, borderRadius: "50%", background: "var(--accent-primary)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--bg-base)" },
-  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", zIndex: 50 },
+  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", zIndex: 56 },
   modal: { background: "var(--bg-surface)", borderRadius: "16px 16px 0 0", padding: "20px 16px 32px", width: "100%", maxWidth: 600, margin: "0 auto", maxHeight: "90vh", overflowY: "auto" },
   input: { width: "100%", padding: "8px 10px", border: "0.5px solid var(--border)", borderRadius: 8, background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, fontFamily: "inherit" },
   textarea: { resize: "vertical", minHeight: 88, lineHeight: 1.6 },
@@ -1384,6 +1413,7 @@ const styles: Record<string, React.CSSProperties> = {
   cardMetaRow: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginTop: 8 },
   cardFavText: { fontSize: 13, color: "#e0af68", letterSpacing: 1 },
   cardTapRegion: { marginTop: 16, paddingTop: 16, borderTop: "0.5px dashed var(--border)", width: "100%", cursor: "pointer" },
+  cardSection: { marginTop: 16, paddingTop: 16, borderTop: "0.5px dashed var(--border)", width: "100%" },
   cardStageText: { fontSize: 15, color: "var(--text-muted)", lineHeight: 1.7, margin: 0 },
   cardTapHint: { fontSize: 11, color: "var(--text-dim)", margin: 0 },
   cardWorkTag: { display: "inline-block", marginTop: 10, fontSize: 11, color: "var(--text-dim)" },
@@ -1391,9 +1421,11 @@ const styles: Record<string, React.CSSProperties> = {
   cardReviewBtn: { width: 52, height: 52, borderRadius: "50%", background: "transparent", borderWidth: "1.5px", borderStyle: "solid", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   cardEmptyWrap: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" },
   cardStartOverlay: { position: "fixed", inset: 0, background: "var(--bg-base)", zIndex: 55, display: "flex", flexDirection: "column", padding: "14px 16px" },
-  cardStartTopRow: { display: "flex", alignItems: "center" },
+  cardStartTopRow: { display: "flex", alignItems: "center", gap: 6 },
   cardStartBody: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 28, maxWidth: 340, width: "100%", margin: "0 auto" },
-  cardStartTitleWrap: { display: "flex", justifyContent: "center" },
+  cardStartTitleWrap: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 },
+  cardStartTitle: { fontSize: 22, fontWeight: 700, color: "var(--text-primary)" },
+  cardStartTotalCount: { fontSize: 44, fontWeight: 800, lineHeight: 1.1, color: "var(--accent-primary, #7aa2f7)" },
   cardStartOptions: { display: "flex", flexDirection: "column" },
   cardStartOptionRow: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 2px", borderBottom: "0.5px solid var(--border)" },
   cardStartOptionLabel: { fontSize: 14, color: "var(--text-primary)" },

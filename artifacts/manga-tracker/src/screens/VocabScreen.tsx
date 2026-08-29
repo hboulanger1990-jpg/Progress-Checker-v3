@@ -214,6 +214,12 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
   const [syncing, setSyncing] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const initialCloudLoadDone = useRef(false);
+  // クラウドから読み込んでsetEntriesした直後かどうかのフラグ。
+  // trueの間は「利用者の変更」ではなく「読み込みの反映」なので、直後の自動保存を1回だけスキップする。
+  // これが無いと、他の端末（例：スマホ）が開いた瞬間にたまたま古いクラウドの内容を読み込んだだけで、
+  // その古い内容がそのままクラウドへ書き戻されてしまい、他の端末（例：パソコン）が
+  // その後に保存した新しい内容を上書きしてしまう不具合が起きる。
+  const skipNextSaveRef = useRef(false);
 
   // 起動時：ログイン中はクラウド優先で読み込み（クラウドになければlocalStorageから移行）
   useEffect(() => {
@@ -222,6 +228,7 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
       setSyncing(true);
       const cloud = await loadVocabFromCloud(user.id);
       if (cloud) {
+        skipNextSaveRef.current = true; // 読み込みの反映であって、変更ではない
         setEntries(migrateEntries(cloud));
       } else if (entries.length > 0) {
         // ローカルにデータがあってクラウドにまだなければ移行
@@ -246,6 +253,13 @@ export default function VocabScreen({ user, theme, onToggleTheme, onSwitchToProg
 
   // 変更のたびにlocalStorageへ保存し、ログイン中はクラウドにも保存
   useEffect(() => {
+    // クラウドから読み込んだ直後の反映は「変更」ではないので、クラウドへの書き戻しをスキップする
+    // （localStorageへの保存は、他タブとの整合等のためそのまま行う）
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      saveVocab(entries);
+      return;
+    }
     saveVocab(entries);
     if (user && initialCloudLoadDone.current) {
       saveVocabToCloud(user.id, entries);

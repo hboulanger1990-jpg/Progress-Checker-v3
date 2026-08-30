@@ -52,11 +52,26 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    // Supabaseはログイン中も裏側で定期的に認証トークンを更新しており（デフォルト約1時間ごと）、
+    // そのたびにonAuthStateChangeが発火する。このとき返ってくるsession.userは、
+    // 中身（ユーザーID）が同じでも毎回新しく作られた別オブジェクトなので、
+    // 素朴にsetUserすると「userが変わった」とReactに判定されてしまい、
+    // userを依存配列に持つ各画面のクラウド読み込みuseEffectが作業中に再発火し、
+    // その時点でまだクラウドに反映しきっていない古いデータで画面の状態を上書きしてしまう
+    // （実際にTangoで発生した不具合の原因）。
+    // これを防ぐため、ユーザーIDが変わっていなければsetUserを呼ばず、同じオブジェクト参照を保つ。
+    const applyUser = (nextUser: User | null) => {
+      setUser((prev) => {
+        const prevId = prev?.id ?? null;
+        const nextId = nextUser?.id ?? null;
+        return prevId === nextId && prevId !== null ? prev : nextUser;
+      });
+    };
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      applyUser(session?.user ?? null);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      applyUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
